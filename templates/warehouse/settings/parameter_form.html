@@ -1,0 +1,104 @@
+{% extends 'warehouse/base.html' %}
+{% load warehouse_tags %}
+
+{% block title %}{% if parameter %}Редагування{% else %}Додавання{% endif %} параметра | Складський облік{% endblock %}
+
+{% block header %}{% if parameter %}Редагування{% else %}Додавання{% endif %} параметра{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col-md-12">
+        <div class="d-flex">
+            <a href="{% url 'settings_index' %}" class="btn btn-outline-secondary btn-sm me-2">
+                <i class="fas fa-arrow-left me-1"></i> До параметрів
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow-sm border mb-4">
+            <div class="card-header bg-white">
+                <h5 class="card-title mb-0">{% if parameter %}Редагування{% else %}Додавання{% endif %} параметра</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" id="parameterForm">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="id_type" class="form-label">Тип параметра <span class="text-danger">*</span></label>
+                        <select name="type" id="id_type" class="form-select" required>
+                            <option value="">Оберіть тип</option>
+                            <option value="category" {% if parameter_type == 'category' %}selected{% endif %}>Категорія</option>
+                            <option value="import" {% if parameter_type == 'import' %}selected{% endif %}>Назва (імпу)</option>
+                            <option value="lot" {% if parameter_type == 'lot' %}selected{% endif %}>Лот</option>
+                            <option value="package" {% if parameter_type == 'package' %}selected{% endif %}>Упаковка</option>
+                            <option value="measurement" {% if parameter_type == 'measurement' %}selected{% endif %}>Од. виміру</option>
+                        </select>
+                        {% if form.type.errors %}
+                        <div class="text-danger small mt-1">{{ form.type.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="id_name" class="form-label">Назва <span class="text-danger">*</span></label>
+                        <input type="text" name="name" id="id_name" class="form-control" value="{{ parameter.name|default:'' }}" required>
+                        {% if form.name.errors %}
+                        <div class="text-danger small mt-1">{{ form.name.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="id_description" class="form-label">Опис</label>
+                        <textarea name="description" id="id_description" class="form-control" rows="3">{{ parameter.description|default:'' }}</textarea>
+                        {% if form.description.errors %}
+                        <div class="text-danger small mt-1">{{ form.description.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="id_is_active" name="is_active" {% if parameter.is_active|default:True %}checked{% endif %}>
+                        <label class="form-check-label" for="id_is_active">
+                            Активний
+                        </label>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'settings_index' %}" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-times me-1"></i> Скасувати
+                        </a>
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="fas fa-save me-1"></i> Зберегти
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card shadow-sm border">
+            <div class="card-header bg-white">
+                <h5 class="card-title mb-0">Довідка</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <h6><i class="fas fa-info-circle text-primary me-1"></i> Про параметри</h6>
+                    <p class="small text-muted">Параметри використовуються для налаштування системи та категоризації товарів.</p>
+                </div>
+                
+                <div class="mb-0">
+                    <h6><i class="fas fa-lightbulb text-warning me-1"></i> Підказки</h6>
+                    <ul class="small text-muted ps-3 mb-0">
+                        <li>Вкажіть правильний тип параметра для використання в потрібних місцях системи</li>
+                        <li>Назва повинна бути унікальною в межах одного типу</li>
+                        <li>Неактивні параметри не відображаються при створенні товарів</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %} 

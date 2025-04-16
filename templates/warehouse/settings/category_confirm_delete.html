@@ -1,0 +1,46 @@
+{% extends 'warehouse/base.html' %}
+{% load static %}
+
+{% block title %}Видалення категорії | Складський облік{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="mb-3">
+        <nav style="--bs-breadcrumb-divider: '/';" aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'settings_index' %}">Налаштування</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'manage_categories' %}">Категорії</a></li>
+                <li class="breadcrumb-item active">Видалення</li>
+            </ol>
+        </nav>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 mx-auto">
+            <div class="card border border-danger shadow-sm">
+                <div class="card-body">
+                    <h5 class="mb-3 text-danger">Підтвердження видалення</h5>
+                    <p class="mb-3">Ви впевнені, що хочете видалити категорію "<strong>{{ category.name }}</strong>"?</p>
+                    
+                    <div class="alert alert-warning" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Увага!</strong> Видалення категорії може вплинути на товари, які до неї належать.
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'manage_categories' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i> Скасувати
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash me-1"></i> Видалити
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,163 @@
+{% extends 'warehouse/base.html' %}
+
+{% block title %}Кошик | Складський облік{% endblock %}
+
+{% block header %}Кошик{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card shadow-sm border mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Товари в кошику</h5>
+                <div>
+                    <a href="{% url 'product_list' %}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-plus me-1"></i> Додати товари
+                    </a>
+                    <a href="{% url 'clear_cart' %}" class="btn btn-outline-danger btn-sm ms-2">
+                        <i class="fas fa-trash-alt me-1"></i> Очистити кошик
+                    </a>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if cart_items %}
+                <form method="post" action="{% url 'update_cart' %}">
+                    {% csrf_token %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="border-0">Назва товару</th>
+                                    <th class="border-0">Категорія/Тип</th>
+                                    <th class="border-0">Ціна за одиницю</th>
+                                    <th class="border-0" style="width: 150px;">Кількість</th>
+                                    <th class="border-0">Загальна ціна</th>
+                                    <th class="border-0"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in cart_items %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if item.product.image %}
+                                            <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="me-2" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">
+                                            {% else %}
+                                            <img src="/static/img/no-image.png" alt="No Image" class="me-2" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">
+                                            {% endif %}
+                                            <span class="fw-medium">{{ item.product.name }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            {{ item.product.category.name }}
+                                            {% if item.product.culture %}
+                                            | {{ item.product.culture.name }}
+                                            {% endif %}
+                                        </small>
+                                    </td>
+                                    <td>{{ item.price }} грн</td>
+                                    <td>
+                                        <div class="input-group">
+                                            <input type="number" name="quantity_{{ item.product.id }}" value="{{ item.quantity }}" min="0" max="{{ item.product.quantity }}" class="form-control" onchange="updateCartItemTotal({{ item.product.id }}, this.value, {{ item.price }})">
+                                            <div class="input-group-append">
+                                                <div class="d-flex flex-column">
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="incrementQuantity({{ item.product.id }}, {{ item.product.quantity }})">
+                                                        <i class="fas fa-chevron-up"></i>
+                                                    </button>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="decrementQuantity({{ item.product.id }})">
+                                                        <i class="fas fa-chevron-down"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            {% if item.product.measurement_unit %}
+                                            <span class="input-group-text">{{ item.product.measurement_unit.name }}</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td id="item_total_{{ item.product.id }}">{{ item.total }} грн</td>
+                                    <td>
+                                        <a href="#" onclick="removeFromCart({{ item.product.id }}); return false;" class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-times"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="p-3 border-top bg-light d-flex justify-content-between align-items-center">
+                        <div>
+                            <span>Загальна кількість: <span class="fw-medium">{{ cart_items|length }}</span> шт.</span>
+                        </div>
+                        <div class="d-flex">
+                            <div class="me-4">
+                                <span class="fs-5">Загальна сума: <span class="fw-bold text-primary" id="cart_total">{{ total_price }} грн</span></span>
+                            </div>
+                            <button type="submit" name="action" value="checkout" class="btn btn-primary">
+                                <i class="fas fa-check me-1"></i> Підтвердити замовлення
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                {% else %}
+                <div class="alert alert-info m-3" role="alert">
+                    <i class="fas fa-info-circle me-2"></i> Ваш кошик порожній.
+                    <a href="{% url 'product_list' %}" class="alert-link">Перейти до каталогу товарів</a>.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function updateCartItemTotal(productId, quantity, price) {
+        const total = quantity * price;
+        document.getElementById('item_total_' + productId).textContent = total.toFixed(2) + ' грн';
+        
+        // Recalculate cart total
+        let cartTotal = 0;
+        {% for item in cart_items %}
+        if ({{ item.product.id }} === productId) {
+            cartTotal += total;
+        } else {
+            cartTotal += {{ item.total }};
+        }
+        {% endfor %}
+        
+        document.getElementById('cart_total').textContent = cartTotal.toFixed(2) + ' грн';
+    }
+    
+    function removeFromCart(productId) {
+        // Set quantity to 0 and submit form
+        document.querySelector('input[name="quantity_' + productId + '"]').value = 0;
+        document.querySelector('form').submit();
+    }
+    
+    function incrementQuantity(productId, maxQuantity) {
+        const input = document.querySelector('input[name="quantity_' + productId + '"]');
+        const currentValue = parseInt(input.value);
+        if (currentValue < maxQuantity) {
+            input.value = currentValue + 1;
+            // Trigger the change event
+            const event = new Event('change');
+            input.dispatchEvent(event);
+        }
+    }
+    
+    function decrementQuantity(productId) {
+        const input = document.querySelector('input[name="quantity_' + productId + '"]');
+        const currentValue = parseInt(input.value);
+        if (currentValue > 1) {
+            input.value = currentValue - 1;
+            // Trigger the change event
+            const event = new Event('change');
+            input.dispatchEvent(event);
+        }
+    }
+</script>
+{% endblock %} 

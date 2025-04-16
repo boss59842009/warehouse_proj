@@ -1,0 +1,293 @@
+{% extends 'warehouse/base.html' %}
+
+{% block title %}Групова інвентаризація | Складський облік{% endblock %}
+
+{% block header %}Групова інвентаризація{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col-md-6">
+        <div class="d-flex">
+            <a href="{% url 'inventory_list' %}" class="btn btn-outline-secondary btn-sm me-2">
+                <i class="fas fa-arrow-left me-1"></i> До списку інвентаризацій
+            </a>
+            <a href="{% url 'inventory_create' %}" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-plus me-1"></i> Одиночна інвентаризація
+            </a>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <form method="get" class="d-flex justify-content-end">
+            <div class="d-flex">
+                <select name="category" class="form-select form-select-sm me-2" style="max-width: 200px;">
+                    <option value="">Всі категорії</option>
+                    {% for category in categories %}
+                    <option value="{{ category.id }}" {% if selected_category == category.id|stringformat:"i" %}selected{% endif %}>
+                        {{ category.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-filter me-1"></i> Фільтрувати
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border mb-4">
+    <div class="card-header bg-white">
+        <h5 class="card-title mb-0">Групова інвентаризація товарів</h5>
+    </div>
+    
+    <div class="card-body p-0">
+        <form method="post">
+            {% csrf_token %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th style="width: 50px;">#</th>
+                            <th>Товар</th>
+                            <th style="width: 150px;">Очікувана кількість</th>
+                            <th style="width: 200px;">Фактична кількість</th>
+                            <th style="width: 80px;">Оновити</th>
+                            <th style="width: 250px;">Коментар</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in page_obj %}
+                        <tr>
+                            <td>
+                                <div class="form-check">
+                                    <input class="form-check-input product-check" type="checkbox" id="check_{{ product.id }}" data-product-id="{{ product.id }}">
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    {% if product.image %}
+                                    <img src="{{ product.image.url }}" alt="{{ product.name }}" class="me-2" 
+                                         style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">
+                                    {% else %}
+                                    <img src="/static/img/no-image.png" alt="No Image" class="me-2" 
+                                         style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">
+                                    {% endif %}
+                                    <div>
+                                        <div class="fw-medium">{{ product.name }}</div>
+                                        <div class="text-muted small">{{ product.category.name }}
+                                            {% if product.lot_number %} | Лот: {{ product.lot_number }}{% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="fw-medium">{{ product.quantity }}</span> 
+                                <span class="text-muted small">{{ product.measurement_unit.name }}</span>
+                            </td>
+                            <td>
+                                <div class="input-group input-group-sm">
+                                    <input type="number" name="qty_{{ product.id }}" id="qty_{{ product.id }}" 
+                                           class="form-control actual-qty" value="{{ product.quantity }}" min="0" disabled>
+                                    <span class="input-group-text">{{ product.measurement_unit.name }}</span>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <div class="form-check">
+                                    <input class="form-check-input update-check" type="checkbox" name="update_{{ product.id }}" id="update_{{ product.id }}" disabled>
+                                </div>
+                            </td>
+                            <td>
+                                <input type="text" name="comment_{{ product.id }}" id="comment_{{ product.id }}" 
+                                       class="form-control form-control-sm comment-input" placeholder="Коментар..." disabled>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4">
+                                <div class="text-muted">
+                                    <i class="fas fa-box-open fa-2x mb-3"></i>
+                                    <p>Товарів для інвентаризації не знайдено.</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Контроль вибору -->
+            <div class="p-3 border-top bg-light">
+                <div class="row align-items-center">
+                    <div class="col-md-6 mb-3 mb-md-0">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="selectAll">
+                            <label class="form-check-label" for="selectAll">
+                                Обрати всі товари на сторінці
+                            </label>
+                        </div>
+                        <div class="mt-2 text-muted" id="selectedCountInfo">
+                            Обрано: <span id="selectedCount">0</span> з {{ page_obj|length }} товарів
+                        </div>
+                    </div>
+                    <div class="col-md-6 text-md-end">
+                        <button type="button" id="selectAllUpdateBtn" class="btn btn-outline-secondary btn-sm me-2">
+                            <i class="fas fa-check-double me-1"></i> Поставити галочки "Оновити"
+                        </button>
+                        <button type="submit" class="btn btn-primary btn-sm" id="submitInventoryBtn" disabled>
+                            <i class="fas fa-save me-1"></i> Зберегти інвентаризацію
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Пагінація -->
+{% if page_obj.has_other_pages %}
+<div class="card shadow-sm border">
+    <div class="card-body py-2">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <span class="text-muted small">
+                    Показано {{ page_obj.start_index }}-{{ page_obj.end_index }} з {{ page_obj.paginator.count }}
+                </span>
+            </div>
+            <nav aria-label="Page navigation">
+                <ul class="pagination pagination-sm mb-0">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if selected_category %}&category={{ selected_category }}{% endif %}" aria-label="First">
+                            <span aria-hidden="true">&laquo;&laquo;</span>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if selected_category %}&category={{ selected_category }}{% endif %}" aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <a class="page-link" href="#" aria-label="First">
+                            <span aria-hidden="true">&laquo;&laquo;</span>
+                        </a>
+                    </li>
+                    <li class="page-item disabled">
+                        <a class="page-link" href="#" aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                        <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}{% if selected_category %}&category={{ selected_category }}{% endif %}">{{ num }}</a>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if selected_category %}&category={{ selected_category }}{% endif %}" aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if selected_category %}&category={{ selected_category }}{% endif %}" aria-label="Last">
+                            <span aria-hidden="true">&raquo;&raquo;</span>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <a class="page-link" href="#" aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                    <li class="page-item disabled">
+                        <a class="page-link" href="#" aria-label="Last">
+                            <span aria-hidden="true">&raquo;&raquo;</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const productCheckboxes = document.querySelectorAll('.product-check');
+        const selectAllCheckbox = document.getElementById('selectAll');
+        const selectedCountSpan = document.getElementById('selectedCount');
+        const submitBtn = document.getElementById('submitInventoryBtn');
+        const selectAllUpdateBtn = document.getElementById('selectAllUpdateBtn');
+        
+        // Функція для оновлення кількості обраних товарів
+        function updateSelectedCount() {
+            const checkedCount = document.querySelectorAll('.product-check:checked').length;
+            selectedCountSpan.textContent = checkedCount;
+            submitBtn.disabled = checkedCount === 0;
+        }
+        
+        // Обробка вибору окремого товару
+        productCheckboxes.forEach(function(checkbox) {
+            checkbox.addEventListener('change', function() {
+                const productId = this.dataset.productId;
+                const qtyInput = document.getElementById(`qty_${productId}`);
+                const updateCheck = document.getElementById(`update_${productId}`);
+                const commentInput = document.getElementById(`comment_${productId}`);
+                
+                // Активувати або деактивувати відповідні поля
+                qtyInput.disabled = !this.checked;
+                updateCheck.disabled = !this.checked;
+                commentInput.disabled = !this.checked;
+                
+                updateSelectedCount();
+                
+                // Перевірка, чи всі товари обрані
+                const allChecked = document.querySelectorAll('.product-check:not(:checked)').length === 0;
+                selectAllCheckbox.checked = allChecked && productCheckboxes.length > 0;
+            });
+        });
+        
+        // Обробка вибору всіх товарів
+        selectAllCheckbox.addEventListener('change', function() {
+            const isChecked = this.checked;
+            
+            productCheckboxes.forEach(function(checkbox) {
+                checkbox.checked = isChecked;
+                
+                const productId = checkbox.dataset.productId;
+                const qtyInput = document.getElementById(`qty_${productId}`);
+                const updateCheck = document.getElementById(`update_${productId}`);
+                const commentInput = document.getElementById(`comment_${productId}`);
+                
+                qtyInput.disabled = !isChecked;
+                updateCheck.disabled = !isChecked;
+                commentInput.disabled = !isChecked;
+            });
+            
+            updateSelectedCount();
+        });
+        
+        // Встановлення галочок "Оновити" для всіх обраних товарів
+        selectAllUpdateBtn.addEventListener('click', function() {
+            document.querySelectorAll('.product-check:checked').forEach(function(checkbox) {
+                const productId = checkbox.dataset.productId;
+                const updateCheck = document.getElementById(`update_${productId}`);
+                updateCheck.checked = true;
+            });
+        });
+        
+        // Ініціалізація лічильника
+        updateSelectedCount();
+    });
+</script>
+{% endblock %}
+{% endblock %} 

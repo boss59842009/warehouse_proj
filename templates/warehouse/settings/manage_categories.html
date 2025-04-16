@@ -1,0 +1,81 @@
+{% extends 'warehouse/base.html' %}
+{% load static %}
+
+{% block title %}Управління категоріями | Складський облік{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="mb-3">
+        <nav style="--bs-breadcrumb-divider: '/';" aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'settings_index' %}">Налаштування</a></li>
+                <li class="breadcrumb-item active">Категорії</li>
+            </ol>
+        </nav>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card border shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="mb-3">Категорії товарів</h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th width="5%">#</th>
+                                    <th width="75%">Назва категорії</th>
+                                    <th width="20%" class="text-end">Дії</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if categories %}
+                                    {% for category in categories %}
+                                    <tr>
+                                        <td>{{ forloop.counter }}</td>
+                                        <td>{{ category.name }}</td>
+                                        <td class="text-end">
+                                            <a href="{% url 'edit_category' category.id %}" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{% url 'delete_category' category.id %}" class="btn btn-sm btn-outline-danger">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="3" class="text-center py-3">Немає категорій у системі</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card border shadow-sm">
+                <div class="card-body">
+                    <h5 class="mb-3">Додати категорію</h5>
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="{{ form.name.id_for_label }}" class="form-label">Назва категорії</label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                            <div class="text-danger small mt-1">{{ form.name.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Зберегти</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,167 @@
+{% extends 'warehouse/base.html' %}
+
+{% block title %}Панель управління | Складський облік{% endblock %}
+
+{% block header %}Панель управління{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Статистика замовлень</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col">
+                        <div class="p-3 border bg-light rounded">
+                            <h2 class="display-4">{{ total_orders }}</h2>
+                            <p class="mb-0">Всього замовлень</p>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="p-3 border bg-light rounded">
+                            <h2 class="display-4 text-warning">{{ pending_orders }}</h2>
+                            <p class="mb-0">В обробці</p>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="p-3 border bg-light rounded">
+                            <h2 class="display-4 text-info">{{ processing_orders }}</h2>
+                            <p class="mb-0">Обробляються</p>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="p-3 border bg-light rounded">
+                            <h2 class="display-4 text-success">{{ completed_orders }}</h2>
+                            <p class="mb-0">Виконані</p>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="p-3 border bg-light rounded">
+                            <h2 class="display-4 text-danger">{{ canceled_orders }}</h2>
+                            <p class="mb-0">Скасовані</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Кількість товарів за категоріями</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Категорія</th>
+                                <th>Кількість товарів</th>
+                                <th>Загальна кількість</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for category in product_by_category %}
+                            <tr>
+                                <td>{{ category.category__name }}</td>
+                                <td>{{ category.count }}</td>
+                                <td>{{ category.total_quantity|default:0 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center">Немає даних</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Останні рухи товарів</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Товар</th>
+                                <th>Тип руху</th>
+                                <th>Кількість</th>
+                                <th>Дата</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for movement in recent_movements %}
+                            <tr>
+                                <td>{{ movement.product.name }}</td>
+                                <td>
+                                    {% if movement.movement_type == 'incoming' %}
+                                    <span class="badge bg-success">Надходження</span>
+                                    {% elif movement.movement_type == 'outgoing' %}
+                                    <span class="badge bg-danger">Видача</span>
+                                    {% elif movement.movement_type == 'return' %}
+                                    <span class="badge bg-info">Повернення</span>
+                                    {% elif movement.movement_type == 'write_off' %}
+                                    <span class="badge bg-warning">Списання</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ movement.quantity }}</td>
+                                <td>{{ movement.date|date:"d.m.Y H:i" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center">Немає даних</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Розбіжності при інвентаризації</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Товар</th>
+                                <th>Очікувано</th>
+                                <th>Фактично</th>
+                                <th>Різниця</th>
+                                <th>Дата</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for inventory in inventory_discrepancies %}
+                            <tr>
+                                <td>{{ inventory.product.name }}</td>
+                                <td>{{ inventory.quantity_expected }}</td>
+                                <td>{{ inventory.quantity_actual }}</td>
+                                <td class="{% if inventory.difference < 0 %}text-danger{% elif inventory.difference > 0 %}text-success{% endif %}">
+                                    {{ inventory.difference }}
+                                </td>
+                                <td>{{ inventory.created_at|date:"d.m.Y" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center">Немає даних</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

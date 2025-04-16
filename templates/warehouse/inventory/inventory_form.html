@@ -1,0 +1,101 @@
+{% extends 'warehouse/base.html' %}
+
+{% block title %}{% if inventory %}Редагування{% else %}Створення{% endif %} інвентаризації | Складський облік{% endblock %}
+
+{% block header %}{% if inventory %}Редагування{% else %}Створення{% endif %} інвентаризації{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow-sm border mb-4">
+            <div class="card-header bg-white">
+                <h5 class="card-title mb-0">{% if inventory %}Редагування{% else %}Створення{% endif %} інвентаризації</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" id="inventoryForm">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="{{ form.product.id_for_label }}" class="form-label">Товар <span class="text-danger">*</span></label>
+                        {{ form.product }}
+                        {% if form.product.errors %}
+                        <div class="text-danger small mt-1">{{ form.product.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.quantity_expected.id_for_label }}" class="form-label">Очікувана кількість <span class="text-danger">*</span></label>
+                            {{ form.quantity_expected }}
+                            {% if form.quantity_expected.errors %}
+                            <div class="text-danger small mt-1">{{ form.quantity_expected.errors }}</div>
+                            {% endif %}
+                            <div class="form-text">Очікувана кількість на складі</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.quantity_actual.id_for_label }}" class="form-label">Фактична кількість <span class="text-danger">*</span></label>
+                            {{ form.quantity_actual }}
+                            {% if form.quantity_actual.errors %}
+                            <div class="text-danger small mt-1">{{ form.quantity_actual.errors }}</div>
+                            {% endif %}
+                            <div class="form-text">Фактична кількість виявлена під час перевірки</div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.comment.id_for_label }}" class="form-label">Коментар</label>
+                        {{ form.comment }}
+                        {% if form.comment.errors %}
+                        <div class="text-danger small mt-1">{{ form.comment.errors }}</div>
+                        {% endif %}
+                        <div class="form-text">Додаткова інформація про інвентаризацію</div>
+                    </div>
+                    
+                    {% if inventory %}
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" name="update_product" id="update_product">
+                        <label class="form-check-label" for="update_product">Оновити кількість товару відповідно до фактичної кількості</label>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{% if inventory %}{% url 'inventory_detail' pk=inventory.id %}{% else %}{% url 'inventory_list' %}{% endif %}" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-arrow-left me-1"></i> {% if inventory %}Повернутися до деталей{% else %}Скасувати{% endif %}
+                        </a>
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="fas fa-save me-1"></i> Зберегти
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card shadow-sm border mb-4">
+            <div class="card-header bg-white">
+                <h5 class="card-title mb-0">Інформація</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <h6><i class="fas fa-info-circle text-primary me-1"></i> Про інвентаризацію</h6>
+                    <p class="small text-muted">Інвентаризація - це процес перевірки фактичної наявності товарів на складі та порівняння з обліковими даними.</p>
+                </div>
+                
+                <div class="mb-4">
+                    <h6><i class="fas fa-lightbulb text-warning me-1"></i> Рекомендації</h6>
+                    <ul class="small text-muted ps-3">
+                        <li>Перевірте кількість товару фізично перед заповненням форми</li>
+                        <li>Зазначте причину розбіжностей у коментарі, якщо вони виявлені</li>
+                        <li>Прийміть рішення про коригування кількості товару в системі</li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h6><i class="fas fa-exclamation-triangle text-danger me-1"></i> Важливо</h6>
+                    <p class="small text-muted">При позначенні опції "Оновити кількість товару" система автоматично змінить кількість товару на складі відповідно до вказаної фактичної кількості.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

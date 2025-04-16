@@ -1,0 +1,256 @@
+{% extends 'warehouse/base.html' %}
+
+{% block title %}Замовлення #{{ order.id }} | Складський облік{% endblock %}
+
+{% block header %}Замовлення #{{ order.id }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{% url 'order_list' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i> До списку замовлень
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Основна інформація про замовлення -->
+        <div class="card shadow-sm border mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Інформація про замовлення</h5>
+                <div>
+                    <span class="badge 
+                        {% if order.status == 'new' %}bg-primary
+                        {% elif order.status == 'processing' %}bg-info text-dark
+                        {% elif order.status == 'shipped' %}bg-warning text-dark
+                        {% elif order.status == 'delivered' %}bg-success
+                        {% elif order.status == 'canceled' %}bg-danger
+                        {% elif order.status == 'returned' %}bg-secondary
+                        {% else %}bg-secondary{% endif %}">
+                        {{ order.get_status_display }}
+                    </span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <h6 class="text-muted mb-1">Замовлення</h6>
+                        <p class="mb-0">№{{ order.id }}</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <h6 class="text-muted mb-1">Дата створення</h6>
+                        <p class="mb-0">{{ order.created_at|date:"d.m.Y H:i" }}</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <h6 class="text-muted mb-1">Клієнт</h6>
+                        <p class="mb-0">{{ order.customer_name }}</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <h6 class="text-muted mb-1">Телефон</h6>
+                        <p class="mb-0">{{ order.phone_number }}</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <h6 class="text-muted mb-1">Email</h6>
+                        <p class="mb-0">{% if order.email %}{{ order.email }}{% else %}<span class="text-muted">Не вказано</span>{% endif %}</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <h6 class="text-muted mb-1">Адреса доставки</h6>
+                        <p class="mb-0">{% if order.delivery_address %}{{ order.delivery_address }}{% else %}<span class="text-muted">Не вказано</span>{% endif %}</p>
+                    </div>
+                    {% if order.notes %}
+                    <div class="col-12">
+                        <h6 class="text-muted mb-1">Примітки</h6>
+                        <p class="mb-0">{{ order.notes }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Товари в замовленні -->
+        <div class="card shadow-sm border mb-4">
+            <div class="card-header bg-white">
+                <h5 class="card-title mb-0">Товари в замовленні</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-bordered mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th>Товар</th>
+                                <th style="width: 150px;">Кількість</th>
+                                <th style="width: 150px;">Ціна</th>
+                                <th style="width: 150px;">Сума</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in order.items.all %}
+                            <tr>
+                                <td>
+                                    <div>{{ item.product.name }}</div>
+                                    <small class="text-muted">{{ item.product.code }}</small>
+                                </td>
+                                <td>{{ item.quantity }} {{ item.product.measurement_unit.name }}</td>
+                                <td>{{ item.price|floatformat:2 }} грн.</td>
+                                <td>{{ item.total_price|floatformat:2 }} грн.</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center py-3">
+                                    <i class="fas fa-box-open me-2"></i> Товари відсутні
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="bg-light">
+                            <tr>
+                                <th colspan="3" class="text-end">Всього:</th>
+                                <th>{{ order.total_price|floatformat:2 }} грн.</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Бокова панель -->
+    <div class="col-md-4">
+        <!-- Панель дій -->
+        <div class="card shadow-sm border mb-4">
+            <div class="card-header bg-white">
+                <h5 class="card-title mb-0">Дії</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'order_edit' order.id %}" class="btn btn-primary">
+                        <i class="fas fa-edit me-1"></i> Редагувати замовлення
+                    </a>
+                    
+                    {% if order.status == 'new' %}
+                    <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#changeStatusModal" data-status="processing">
+                        <i class="fas fa-hourglass-start me-1"></i> Почати обробку
+                    </button>
+                    {% elif order.status == 'processing' %}
+                    <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#changeStatusModal" data-status="shipped">
+                        <i class="fas fa-shipping-fast me-1"></i> Відправити замовлення
+                    </button>
+                    {% elif order.status == 'shipped' %}
+                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#changeStatusModal" data-status="delivered">
+                        <i class="fas fa-check-circle me-1"></i> Підтвердити доставку
+                    </button>
+                    {% endif %}
+                    
+                    {% if order.status != 'canceled' and order.status != 'returned' %}
+                    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#changeStatusModal" data-status="canceled">
+                        <i class="fas fa-ban me-1"></i> Скасувати замовлення
+                    </button>
+                    {% endif %}
+                    
+                    {% if order.status == 'delivered' %}
+                    <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#changeStatusModal" data-status="returned">
+                        <i class="fas fa-undo me-1"></i> Оформити повернення
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Історія змін статусу -->
+        <div class="card shadow-sm border mb-4">
+            <div class="card-header bg-white">
+                <h5 class="card-title mb-0">Історія змін статусу</h5>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for history in order_history %}
+                    <li class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="badge 
+                                    {% if history.new_status == 'new' %}bg-primary
+                                    {% elif history.new_status == 'processing' %}bg-info text-dark
+                                    {% elif history.new_status == 'shipped' %}bg-warning text-dark
+                                    {% elif history.new_status == 'delivered' %}bg-success
+                                    {% elif history.new_status == 'canceled' %}bg-danger
+                                    {% elif history.new_status == 'returned' %}bg-secondary
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ history.get_new_status_display }}
+                                </span>
+                                {% if history.comment %}
+                                <p class="small text-muted mt-1 mb-0">{{ history.comment }}</p>
+                                {% endif %}
+                            </div>
+                            <small class="text-muted">{{ history.created_at|date:"d.m.Y H:i" }}</small>
+                        </div>
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item text-center py-3 text-muted">
+                        <i class="fas fa-history me-2"></i> Історія відсутня
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальне вікно зміни статусу -->
+<div class="modal fade" id="changeStatusModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'order_change_status' order.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="status" id="statusInput">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">Зміна статусу замовлення</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="commentInput" class="form-label">Коментар (необов'язково)</label>
+                        <textarea name="comment" id="commentInput" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                    <button type="submit" class="btn btn-primary">Зберегти</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Обробник для модального вікна зміни статусу
+    const changeStatusModal = document.getElementById('changeStatusModal');
+    if (changeStatusModal) {
+        changeStatusModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const status = button.getAttribute('data-status');
+            const statusInput = document.getElementById('statusInput');
+            const modalTitle = document.getElementById('modalTitle');
+            
+            statusInput.value = status;
+            
+            // Оновлення заголовка модального вікна відповідно до статусу
+            if (status === 'processing') {
+                modalTitle.textContent = 'Почати обробку замовлення';
+            } else if (status === 'shipped') {
+                modalTitle.textContent = 'Відправити замовлення';
+            } else if (status === 'delivered') {
+                modalTitle.textContent = 'Підтвердити доставку замовлення';
+            } else if (status === 'canceled') {
+                modalTitle.textContent = 'Скасувати замовлення';
+            } else if (status === 'returned') {
+                modalTitle.textContent = 'Оформити повернення замовлення';
+            } else {
+                modalTitle.textContent = 'Змінити статус замовлення';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
+{% endblock %} 

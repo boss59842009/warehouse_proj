@@ -1,0 +1,234 @@
+{% extends 'warehouse/base.html' %}
+
+{% block title %}{{ product.name }} | Складський облік{% endblock %}
+
+{% block header %}Деталі товару{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Product Images -->
+    <div class="col-md-5 mb-4">
+        <div class="card">
+            <div class="card-body p-0">
+                <div id="productCarousel" class="carousel slide" data-bs-ride="carousel">
+                    <div class="carousel-inner">
+                        {% if product.image %}
+                        <div class="carousel-item active">
+                            <img src="{{ product.image.url }}" class="d-block w-100 rounded" style="height: 400px; object-fit: contain;" alt="{{ product.name }}">
+                        </div>
+                        {% endif %}
+                        
+                        {% for image in product.images.all %}
+                        <div class="carousel-item {% if not product.image and forloop.first %}active{% endif %}">
+                            <img src="{{ image.image.url }}" class="d-block w-100 rounded" style="height: 400px; object-fit: contain;" alt="{{ product.name }}">
+                        </div>
+                        {% empty %}
+                        {% if not product.image %}
+                        <div class="carousel-item active">
+                            <img src="/static/img/no-image.png" class="d-block w-100 rounded" style="height: 400px; object-fit: contain;" alt="No Image">
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    
+                    {% if product.image or product.images.all %}
+                    <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel" data-bs-slide="prev">
+                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Попередній</span>
+                    </button>
+                    <button class="carousel-control-next" type="button" data-bs-target="#productCarousel" data-bs-slide="next">
+                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Наступний</span>
+                    </button>
+                    {% endif %}
+                </div>
+                
+                <!-- Thumbnail navigation if there are multiple images -->
+                {% if product.images.all %}
+                <div class="row mt-3 px-3">
+                    {% if product.image %}
+                    <div class="col-3 mb-3">
+                        <img src="{{ product.image.url }}" class="img-thumbnail cursor-pointer" 
+                            onclick="$('#productCarousel').carousel(0)" alt="{{ product.name }}" 
+                            style="height: 80px; object-fit: cover; cursor: pointer;">
+                    </div>
+                    {% endif %}
+                    
+                    {% for image in product.images.all %}
+                    <div class="col-3 mb-3">
+                        <img src="{{ image.image.url }}" class="img-thumbnail cursor-pointer" 
+                            onclick="$('#productCarousel').carousel({{ forloop.counter }}{% if product.image %}{% else %}0{% endif %})" 
+                            alt="{{ product.name }}" style="height: 80px; object-fit: cover; cursor: pointer;">
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Product Information -->
+    <div class="col-md-7 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Інформація про товар</h5>
+                <div>
+                    <a href="{% url 'product_update' product.id %}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-edit me-1"></i> Редагувати
+                    </a>
+                    <a href="{% url 'product_delete' product.id %}" class="btn btn-sm btn-danger">
+                        <i class="fas fa-trash-alt me-1"></i> Видалити
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <h3 class="mb-3">{{ product.name }}</h3>
+                <div class="mb-4">
+                    {% if product.is_available %}
+                    <span class="badge bg-success me-2">В наявності</span>
+                    {% else %}
+                    <span class="badge bg-danger me-2">Немає в наявності</span>
+                    {% endif %}
+                    
+                    <span class="badge bg-primary">Ціна: {{ product.price }} грн</span>
+                </div>
+                
+                <table class="table table-striped">
+                    <tbody>
+                        <tr>
+                            <th>Справжня назва:</th>
+                            <td>{{ product.real_name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Категорія:</th>
+                            <td>{{ product.category.name }}</td>
+                        </tr>
+                        {% if product.culture %}
+                        <tr>
+                            <th>Культура:</th>
+                            <td>{{ product.culture.name }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <th>Кількість:</th>
+                            <td>{{ product.quantity }} {% if product.measurement_unit %}{{ product.measurement_unit.name }}{% endif %}</td>
+                        </tr>
+                        <tr>
+                            <th>Кількість упаковок:</th>
+                            <td>{{ product.packages_count }}</td>
+                        </tr>
+                        {% if product.package_type %}
+                        <tr>
+                            <th>Тип упаковки:</th>
+                            <td>{{ product.package_type.name }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if product.lot_number %}
+                        <tr>
+                            <th>Номер лоту:</th>
+                            <td>{{ product.lot_number }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if product.import_name %}
+                        <tr>
+                            <th>Назва імпорту:</th>
+                            <td>{{ product.import_name }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <th>Створено:</th>
+                            <td>{{ product.created_at|date:"d.m.Y H:i" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Останнє оновлення:</th>
+                            <td>{{ product.updated_at|date:"d.m.Y H:i" }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                {% if product.description %}
+                <div class="mt-4">
+                    <h5>Опис товару:</h5>
+                    <p>{{ product.description|linebreaks }}</p>
+                </div>
+                {% endif %}
+                
+                {% if product.is_available and product.quantity > 0 %}
+                <div class="mt-4">
+                    <h5>Додати до кошика:</h5>
+                    <form method="post" action="{% url 'add_to_cart' product.id %}" class="row g-3">
+                        {% csrf_token %}
+                        <div class="col-md-4">
+                            <label for="quantity" class="form-label">Кількість:</label>
+                            <input type="number" class="form-control" id="quantity" name="quantity" value="1" min="1" max="{{ product.quantity }}">
+                        </div>
+                        <div class="col-md-8 d-flex align-items-end">
+                            <button type="submit" class="btn btn-success me-2">
+                                <i class="fas fa-cart-plus me-1"></i> Додати до кошика
+                            </button>
+                            <button type="submit" name="checkout" value="1" class="btn btn-primary">
+                                <i class="fas fa-shopping-cart me-1"></i> Купити зараз
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Related Products -->
+{% if related_products %}
+<div class="row mt-3">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Схожі товари</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for related in related_products %}
+                    <div class="col-md-3 mb-3">
+                        <div class="card h-100 product-card">
+                            {% if related.image %}
+                            <img src="{{ related.image.url }}" class="card-img-top" style="height: 150px; object-fit: cover;" alt="{{ related.name }}">
+                            {% else %}
+                            <img src="/static/img/no-image.png" class="card-img-top" style="height: 150px; object-fit: cover;" alt="No Image">
+                            {% endif %}
+                            <div class="card-body">
+                                <h6 class="card-title">{{ related.name }}</h6>
+                                <p class="card-text mb-0">
+                                    <small>{{ related.quantity }} {% if related.measurement_unit %}{{ related.measurement_unit.name }}{% endif %}</small>
+                                </p>
+                                <p class="text-primary">{{ related.price }} грн</p>
+                            </div>
+                            <div class="card-footer bg-transparent border-top-0 pb-3">
+                                <a href="{% url 'product_detail' related.id %}" class="btn btn-sm btn-outline-primary w-100">Деталі</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Product Movement Link -->
+<div class="row mt-3">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <a href="{% url 'product_movements' product.id %}" class="btn btn-info text-white">
+                    <i class="fas fa-exchange-alt me-1"></i> Переглянути історію руху товару
+                </a>
+                <a href="{% url 'product_inventory' product.id %}" class="btn btn-warning ms-2">
+                    <i class="fas fa-clipboard-list me-1"></i> Інвентаризація товару
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

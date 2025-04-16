@@ -1,0 +1,269 @@
+{% extends 'warehouse/base.html' %}
+
+{% block title %}Нове замовлення | Складський облік{% endblock %}
+
+{% block header %}Нове замовлення{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <form method="post" id="orderForm">
+            {% csrf_token %}
+            
+            <!-- Картка з інформацією про замовлення -->
+            <div class="card shadow-sm border mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">Інформація про замовлення</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <!-- Дані клієнта -->
+                        <div class="col-md-6">
+                            <label for="customer_name" class="form-label">Ім'я клієнта *</label>
+                            <input type="text" class="form-control" id="customer_name" name="customer_name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="phone_number" class="form-label">Телефон *</label>
+                            <input type="tel" class="form-control" id="phone_number" name="phone_number" required>
+                        </div>
+                        <div class="col-md-12">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email">
+                        </div>
+                        
+                        <!-- Адреса доставки -->
+                        <div class="col-md-12 mt-4">
+                            <h6>Адреса доставки</h6>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="city" class="form-label">Місто *</label>
+                            <input type="text" class="form-control" id="city" name="city" required>
+                        </div>
+                        <div class="col-md-8">
+                            <label for="delivery_address" class="form-label">Адреса *</label>
+                            <input type="text" class="form-control" id="delivery_address" name="delivery_address" required>
+                        </div>
+                        <div class="col-md-12">
+                            <label for="delivery_method" class="form-label">Спосіб доставки</label>
+                            <select class="form-select" id="delivery_method" name="delivery_method">
+                                <option value="nova_poshta">Нова Пошта</option>
+                                <option value="ukrposhta">Укрпошта</option>
+                                <option value="self_pickup">Самовивіз</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Коментар до замовлення -->
+                        <div class="col-md-12 mt-3">
+                            <label for="notes" class="form-label">Примітки до замовлення</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Картка з товарами в замовленні -->
+            <div class="card shadow-sm border mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Товари в замовленні</h5>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="addItemBtn">
+                        <i class="fas fa-plus me-1"></i> Додати товар
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table mb-0" id="orderItemsTable">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th style="width: 45%">Товар</th>
+                                    <th style="width: 20%">Кількість</th>
+                                    <th style="width: 15%">Ціна</th>
+                                    <th style="width: 15%">Сума</th>
+                                    <th style="width: 5%"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="empty-message">
+                                    <td colspan="5" class="text-center py-4">
+                                        <div class="d-flex flex-column align-items-center py-3">
+                                            <i class="fas fa-shopping-cart fa-3x text-muted mb-3"></i>
+                                            <h5 class="text-muted">Замовлення порожнє</h5>
+                                            <p class="text-muted">Натисніть "Додати товар" щоб додати товари до замовлення</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <!-- Шаблон рядка для JavaScript -->
+                                <tr id="itemRowTemplate" style="display: none;">
+                                    <td>
+                                        <select class="form-select product-select" name="items[INDEX][product_id]" required>
+                                            <option value="">Оберіть товар</option>
+                                            {% for product in products %}
+                                            <option value="{{ product.id }}" data-price="{{ product.price }}">{{ product.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control item-quantity" name="items[INDEX][quantity]" min="1" value="1" required>
+                                    </td>
+                                    <td>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control item-price" name="items[INDEX][price]" step="0.01" min="0" required>
+                                            <span class="input-group-text">грн</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="item-subtotal fw-bold">0.00 грн</div>
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                            <tfoot class="bg-light">
+                                <tr>
+                                    <td colspan="3" class="text-end fw-bold">Загальна сума:</td>
+                                    <td class="fw-bold">
+                                        <div id="orderTotal">0.00 грн</div>
+                                        <input type="hidden" name="total_price" id="totalPriceInput" value="0">
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Кнопки -->
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mb-4">
+                        <a href="{% url 'order_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-1"></i> Скасувати
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> Зберегти замовлення
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Картка з підказками -->
+        <div class="card shadow-sm border mb-4">
+            <div class="card-header bg-white">
+                <h5 class="card-title mb-0">Підказки</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <h6><i class="fas fa-info-circle me-1 text-primary"></i> Створення замовлення</h6>
+                    <p class="small text-muted">Заповніть обов'язкові поля, позначені зірочкою (*) та додайте товари до замовлення.</p>
+                </div>
+                <div class="mb-3">
+                    <h6><i class="fas fa-shopping-cart me-1 text-primary"></i> Товари</h6>
+                    <p class="small text-muted">Для додавання товару натисніть кнопку "Додати товар". Ви можете змінити кількість та ціну кожного товару.</p>
+                </div>
+                <div>
+                    <h6><i class="fas fa-truck me-1 text-primary"></i> Доставка</h6>
+                    <p class="small text-muted">Оберіть спосіб доставки та вкажіть точну адресу, щоб уникнути затримок при обробці замовлення.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        let itemIndex = 0;
+        const orderItemsTable = document.getElementById('orderItemsTable');
+        const tbody = orderItemsTable.querySelector('tbody');
+        const template = document.getElementById('itemRowTemplate');
+        const emptyMessage = document.querySelector('.empty-message');
+        const addItemBtn = document.getElementById('addItemBtn');
+        
+        // Функція для оновлення сум
+        function updateTotals() {
+            let orderTotal = 0;
+            const rows = tbody.querySelectorAll('tr:not(#itemRowTemplate):not(.empty-message)');
+            
+            if (rows.length === 0) {
+                emptyMessage.style.display = '';
+            } else {
+                emptyMessage.style.display = 'none';
+                
+                rows.forEach(row => {
+                    const quantity = parseFloat(row.querySelector('.item-quantity').value) || 0;
+                    const price = parseFloat(row.querySelector('.item-price').value) || 0;
+                    const subtotal = quantity * price;
+                    
+                    row.querySelector('.item-subtotal').textContent = subtotal.toFixed(2) + ' грн';
+                    orderTotal += subtotal;
+                });
+            }
+            
+            document.getElementById('orderTotal').textContent = orderTotal.toFixed(2) + ' грн';
+            document.getElementById('totalPriceInput').value = orderTotal.toFixed(2);
+        }
+        
+        // Функція для додавання нового рядка
+        function addItemRow() {
+            const newRow = template.cloneNode(true);
+            newRow.id = '';
+            newRow.style.display = '';
+            
+            // Замінюємо INDEX на поточний індекс
+            newRow.innerHTML = newRow.innerHTML.replace(/INDEX/g, itemIndex);
+            
+            // Додаємо обробники подій
+            const productSelect = newRow.querySelector('.product-select');
+            const quantityInput = newRow.querySelector('.item-quantity');
+            const priceInput = newRow.querySelector('.item-price');
+            const removeBtn = newRow.querySelector('.remove-item-btn');
+            
+            productSelect.addEventListener('change', function() {
+                const option = this.options[this.selectedIndex];
+                if (option.value) {
+                    priceInput.value = option.dataset.price || '0.00';
+                    updateTotals();
+                }
+            });
+            
+            quantityInput.addEventListener('input', updateTotals);
+            priceInput.addEventListener('input', updateTotals);
+            
+            removeBtn.addEventListener('click', function() {
+                newRow.remove();
+                updateTotals();
+            });
+            
+            tbody.appendChild(newRow);
+            itemIndex++;
+            updateTotals();
+            
+            // Фокус на доданому рядку
+            productSelect.focus();
+        }
+        
+        // Додати перший рядок при завантаженні
+        addItemBtn.addEventListener('click', addItemRow);
+        
+        // Обробник для відправки форми
+        document.getElementById('orderForm').addEventListener('submit', function(e) {
+            const rows = tbody.querySelectorAll('tr:not(#itemRowTemplate):not(.empty-message)');
+            if (rows.length === 0) {
+                e.preventDefault();
+                alert('Будь ласка, додайте хоча б один товар до замовлення.');
+                return false;
+            }
+            
+            // Додаткова валідація може бути додана тут
+            return true;
+        });
+    });
+</script>
+{% endblock %}

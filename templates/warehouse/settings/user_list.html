@@ -1,0 +1,216 @@
+{% extends 'warehouse/base.html' %}
+{% load warehouse_tags %}
+
+{% block title %}Користувачі{% endblock %}
+
+{% block header %}
+<h1 class="h3 mb-0 text-gray-800">Користувачі</h1>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-primary">Керування користувачами</h6>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#userModal">
+            <i class="fas fa-plus fa-sm"></i> Додати користувача
+        </button>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="usersTable">
+                <thead>
+                    <tr>
+                        <th>Логін</th>
+                        <th>ПІБ</th>
+                        <th>Email</th>
+                        <th>Роль</th>
+                        <th>Статус</th>
+                        <th>Дії</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user.username }}</td>
+                        <td>{{ user.full_name }}</td>
+                        <td>{{ user.email|default:"-" }}</td>
+                        <td>
+                            {% if user.role == 'admin' %}
+                                <span class="badge bg-danger">Адміністратор</span>
+                            {% elif user.role == 'manager' %}
+                                <span class="badge bg-primary">Менеджер</span>
+                            {% elif user.role == 'warehouse' %}
+                                <span class="badge bg-success">Складський працівник</span>
+                            {% elif user.role == 'readonly' %}
+                                <span class="badge bg-secondary">Тільки перегляд</span>
+                            {% else %}
+                                <span class="badge bg-warning">Інша</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if user.is_active %}
+                                <span class="badge bg-success">Активний</span>
+                            {% else %}
+                                <span class="badge bg-danger">Неактивний</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-sm btn-outline-primary edit-user-btn" 
+                                    data-user-id="{{ user.id }}"
+                                    data-username="{{ user.username }}"
+                                    data-full-name="{{ user.full_name }}"
+                                    data-email="{{ user.email|default:'' }}"
+                                    data-role="{{ user.role }}"
+                                    data-is-active="{{ user.is_active|yesno:'true,false' }}">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger delete-user-btn" data-user-id="{{ user.id }}">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center">Немає користувачів</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% if users.has_other_pages %}
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <div>
+                <p class="text-muted">Показано {{ users.start_index }} - {{ users.end_index }} з {{ users.paginator.count }} користувачів</p>
+            </div>
+            <ul class="pagination justify-content-end mb-0">
+                {% if users.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1" aria-label="First">
+                        <span aria-hidden="true">&laquo;&laquo;</span>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ users.previous_page_number }}" aria-label="Previous">
+                        <span aria-hidden="true">&laquo;</span>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <a class="page-link" href="#" aria-label="First">
+                        <span aria-hidden="true">&laquo;&laquo;</span>
+                    </a>
+                </li>
+                <li class="page-item disabled">
+                    <a class="page-link" href="#" aria-label="Previous">
+                        <span aria-hidden="true">&laquo;</span>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for i in users.paginator.page_range %}
+                    {% if i >= users.number|add:"-2" and i <= users.number|add:"2" %}
+                        <li class="page-item {% if i == users.number %}active{% endif %}">
+                            <a class="page-link" href="?page={{ i }}">{{ i }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if users.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ users.next_page_number }}" aria-label="Next">
+                        <span aria-hidden="true">&raquo;</span>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ users.paginator.num_pages }}" aria-label="Last">
+                        <span aria-hidden="true">&raquo;&raquo;</span>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <a class="page-link" href="#" aria-label="Next">
+                        <span aria-hidden="true">&raquo;</span>
+                    </a>
+                </li>
+                <li class="page-item disabled">
+                    <a class="page-link" href="#" aria-label="Last">
+                        <span aria-hidden="true">&raquo;&raquo;</span>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteUserModalLabel">Видалити користувача</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Ви впевнені, що хочете видалити цього користувача?</p>
+                <p>Ця дія не може бути скасована.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <form id="deleteUserForm" method="post" action="{% url 'user_delete' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="user_id" id="delete_user_id">
+                    <button type="submit" class="btn btn-danger">Видалити</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include User Modal -->
+{% include 'warehouse/settings/user_modal.html' %}
+{% endblock %}
+
+{% block js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Setup edit user buttons
+        const editButtons = document.querySelectorAll('.edit-user-btn');
+        editButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const userId = this.dataset.userId;
+                const username = this.dataset.username;
+                const fullName = this.dataset.fullName;
+                const email = this.dataset.email;
+                const role = this.dataset.role;
+                const isActive = this.dataset.isActive === 'true';
+                
+                // Call function from user_modal.html
+                loadUserData(userId, username, fullName, email, role, isActive);
+                
+                // Show the modal
+                const userModal = new bootstrap.Modal(document.getElementById('userModal'));
+                userModal.show();
+            });
+        });
+        
+        // Setup delete user buttons
+        const deleteButtons = document.querySelectorAll('.delete-user-btn');
+        deleteButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const userId = this.dataset.userId;
+                document.getElementById('delete_user_id').value = userId;
+                
+                // Show the delete confirmation modal
+                const deleteModal = new bootstrap.Modal(document.getElementById('deleteUserModal'));
+                deleteModal.show();
+            });
+        });
+    });
+</script>
+{% endblock %} 

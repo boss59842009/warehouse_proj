@@ -1,0 +1,157 @@
+{% extends 'warehouse/base.html' %}
+
+{% block title %}Деталі інвентаризації #{{ inventory.id }} | Складський облік{% endblock %}
+
+{% block header %}Інвентаризація #{{ inventory.id }}{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col-md-12">
+        <div class="d-flex">
+            <a href="{% url 'inventory_list' %}" class="btn btn-outline-secondary btn-sm me-2">
+                <i class="fas fa-arrow-left me-1"></i> До списку інвентаризацій
+            </a>
+            <a href="{% url 'inventory_update' pk=inventory.id %}" class="btn btn-outline-primary btn-sm me-2">
+                <i class="fas fa-edit me-1"></i> Редагувати
+            </a>
+            <a href="{% url 'product_detail' pk=inventory.product.id %}" class="btn btn-outline-info btn-sm">
+                <i class="fas fa-box me-1"></i> Перейти до товару
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow-sm border mb-4">
+            <div class="card-header bg-white">
+                <h5 class="card-title mb-0">Інформація про інвентаризацію</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h6 class="text-muted mb-3">Основна інформація</h6>
+                        <p><strong>ID:</strong> {{ inventory.id }}</p>
+                        <p><strong>Дата створення:</strong> {{ inventory.created_at|date:"d.m.Y H:i" }}</p>
+                        <p><strong>Статус:</strong> 
+                            {% with difference=inventory.quantity_actual|add:"-"|add:inventory.quantity_expected %}
+                            {% if difference == 0 %}
+                            <span class="badge bg-success">Відповідає (0)</span>
+                            {% elif difference > 0 %}
+                            <span class="badge bg-info">Надлишок (+{{ difference }})</span>
+                            {% else %}
+                            <span class="badge bg-danger">Нестача ({{ difference }})</span>
+                            {% endif %}
+                            {% endwith %}
+                        </p>
+                        <p><strong>Виконавець:</strong> {{ inventory.performed_by.username }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-muted mb-3">Кількісні показники</h6>
+                        <p><strong>Очікувана кількість:</strong> {{ inventory.quantity_expected }} {{ inventory.product.measurement_unit.name }}</p>
+                        <p><strong>Фактична кількість:</strong> {{ inventory.quantity_actual }} {{ inventory.product.measurement_unit.name }}</p>
+                        <p><strong>Розбіжність:</strong> 
+                            {% with difference=inventory.quantity_actual|add:"-"|add:inventory.quantity_expected %}
+                            {% if difference > 0 %}
+                            <span class="text-info">+{{ difference }} {{ inventory.product.measurement_unit.name }}</span>
+                            {% elif difference < 0 %}
+                            <span class="text-danger">{{ difference }} {{ inventory.product.measurement_unit.name }}</span>
+                            {% else %}
+                            <span class="text-success">0 {{ inventory.product.measurement_unit.name }}</span>
+                            {% endif %}
+                            {% endwith %}
+                        </p>
+                    </div>
+                </div>
+                
+                {% if inventory.comment %}
+                <div class="row">
+                    <div class="col-12">
+                        <h6 class="text-muted mb-2">Коментар</h6>
+                        <div class="p-3 bg-light rounded">
+                            {{ inventory.comment|linebreaks }}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card shadow-sm border mb-4">
+            <div class="card-header bg-white">
+                <h5 class="card-title mb-0">Дані товару</h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    {% if inventory.product.image %}
+                    <img src="{{ inventory.product.image.url }}" alt="{{ inventory.product.name }}" class="img-fluid rounded mb-3" style="max-height: 150px; max-width: 100%;">
+                    {% else %}
+                    <img src="/static/img/no-image.png" alt="No Image" class="img-fluid rounded mb-3" style="max-height: 150px; max-width: 100%;">
+                    {% endif %}
+                    <h5>{{ inventory.product.name }}</h5>
+                    <p class="text-muted small">{{ inventory.product.category.name }}</p>
+                </div>
+                
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Код товару:</span>
+                    <span class="fw-medium">{{ inventory.product.code }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Поточна кількість:</span>
+                    <span class="fw-medium">{{ inventory.product.quantity }} {{ inventory.product.measurement_unit.name }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Ціна за одиницю:</span>
+                    <span class="fw-medium">{{ inventory.product.price }} грн</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Номер лоту:</span>
+                    <span class="fw-medium">{% if inventory.product.lot_number %}{{ inventory.product.lot_number }}{% else %}-{% endif %}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Доступність:</span>
+                    <span class="fw-medium">
+                        {% if inventory.product.is_available %}
+                        <span class="badge bg-success">Доступний</span>
+                        {% else %}
+                        <span class="badge bg-danger">Недоступний</span>
+                        {% endif %}
+                    </span>
+                </div>
+                
+                <div class="mt-3">
+                    <a href="{% url 'product_detail' pk=inventory.product.id %}" class="btn btn-sm btn-outline-primary w-100">
+                        <i class="fas fa-info-circle me-1"></i> Детальніше про товар
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Форма швидкого оновлення кількості товару -->
+        <div class="card shadow-sm border">
+            <div class="card-header bg-white">
+                <h5 class="card-title mb-0">Оновлення кількості</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'inventory_update' pk=inventory.id %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Оновити кількість товару</label>
+                        <div class="input-group">
+                            <input type="number" name="quantity_actual" class="form-control" value="{{ inventory.quantity_actual }}">
+                            <span class="input-group-text">{{ inventory.product.measurement_unit.name }}</span>
+                        </div>
+                        <div class="form-text">Поточне значення фактичної кількості.</div>
+                    </div>
+                    <input type="hidden" name="update_product" value="1">
+                    <button type="submit" class="btn btn-success btn-sm w-100">
+                        <i class="fas fa-sync me-1"></i> Оновити кількість товару
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

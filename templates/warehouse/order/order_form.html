@@ -1,0 +1,499 @@
+{% extends 'warehouse/base.html' %}
+
+{% block title %}{% if order %}Редагування{% else %}Створення{% endif %} замовлення | Складський облік{% endblock %}
+
+{% block header %}{% if order %}Редагування{% else %}Створення{% endif %} замовлення{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card shadow-sm border mb-4">
+            <div class="card-header bg-white">
+                <h5 class="card-title mb-0">Інформація про замовлення</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" id="orderForm">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.customer_name.id_for_label }}" class="form-label">Клієнт</label>
+                            {{ form.customer_name }}
+                            {% if form.customer_name.errors %}
+                            <div class="text-danger small mt-1">{{ form.customer_name.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.phone_number.id_for_label }}" class="form-label">Номер телефону</label>
+                            {{ form.phone_number }}
+                            {% if form.phone_number.errors %}
+                            <div class="text-danger small mt-1">{{ form.phone_number.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.email.id_for_label }}" class="form-label">Email</label>
+                            {{ form.email }}
+                            {% if form.email.errors %}
+                            <div class="text-danger small mt-1">{{ form.email.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.delivery_address.id_for_label }}" class="form-label">Адреса доставки</label>
+                            {{ form.delivery_address }}
+                            {% if form.delivery_address.errors %}
+                            <div class="text-danger small mt-1">{{ form.delivery_address.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label for="{{ form.notes.id_for_label }}" class="form-label">Примітки</label>
+                            {{ form.notes }}
+                            {% if form.notes.errors %}
+                            <div class="text-danger small mt-1">{{ form.notes.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Секція товарів -->
+        <div class="card shadow-sm border mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Товари у замовленні</h5>
+                <button type="button" class="btn btn-primary btn-sm" id="addItemBtn">
+                    <i class="fas fa-plus me-1"></i> Оформити замовлення
+                </button>
+            </div>
+            
+            <!-- Фільтри товарів -->
+            <div class="product-filters px-3 pt-2 pb-1 border-bottom bg-light">
+                <div class="d-flex flex-wrap align-items-center">
+                    <div class="filter-label me-2 my-1 fw-medium">Фільтри:</div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="name">
+                        Назва продукту
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="category">
+                        Категорія
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="import">
+                        Назва імпорт
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="lot">
+                        Лот
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="package">
+                        Упаковка
+                    </button>
+                </div>
+            </div>
+            
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table border-bottom mb-0" id="orderItemsTable">
+                        <thead class="bg-light">
+                            <tr>
+                                <th>Товар</th>
+                                <th>Кількість</th>
+                                <th>Дії</th>
+                            </tr>
+                        </thead>
+                        <tbody id="orderItemsBody">
+                            {% if order and order.items.exists %}
+                                {% for item in order.items.all %}
+                                <tr class="order-item" data-id="{{ item.id }}">
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="form-check me-2">
+                                                <input class="form-check-input" type="checkbox" checked>
+                                            </div>
+                                            {% if item.product.image %}
+                                            <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="me-2" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">
+                                            {% else %}
+                                            <img src="/static/img/no-image.png" alt="No Image" class="me-2" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">
+                                            {% endif %}
+                                            <div>
+                                                <div class="fw-medium">{{ item.product.name }}</div>
+                                                <div class="d-flex text-muted small">
+                                                    <span class="me-2">{{ item.product.category.name }}</span>
+                                                    {% if item.product.import_name %}
+                                                    <span class="me-2">{{ item.product.import_name }}</span>
+                                                    {% endif %}
+                                                    <span>Лот: {{ item.product.lot_number }}</span>
+                                                    <span class="ms-2">Упаковка: {{ item.product.package_type }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td style="width: 150px;">
+                                        <div class="input-group">
+                                            <input type="number" class="form-control form-control-sm" value="{{ item.quantity }}" min="1">
+                                            <div class="input-group-text p-0 border-0" style="background: transparent;">
+                                                <div class="d-flex flex-column">
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary increment-btn rounded-0 border-start-0 border-end-0" style="height: 18px; padding: 0; width: 24px; line-height: 15px;">
+                                                        <i class="fas fa-chevron-up" style="font-size: 8px;"></i>
+                                                    </button>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary decrement-btn rounded-0 border-start-0 border-end-0" style="height: 18px; padding: 0; width: 24px; line-height: 15px;">
+                                                        <i class="fas fa-chevron-down" style="font-size: 8px;"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            {% if item.product.measurement_unit %}
+                                            <span class="input-group-text">{{ item.product.measurement_unit.name }}</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td class="text-center" style="width: 60px;">
+                                        <button type="button" class="btn btn-outline-danger btn-sm remove-item py-1 px-2">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% endif %}
+                        </tbody>
+                        <tfoot id="emptyItemsPlaceholder" class="{% if order and order.items.exists %}d-none{% endif %}">
+                            <tr>
+                                <td colspan="3" class="text-center py-4 text-muted">
+                                    <i class="fas fa-box-open me-2"></i> Поки що товарів немає. Натисніть "Додати товар", щоб додати товар до замовлення.
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Статистика замовлення -->
+        <div class="card shadow-sm border mb-4">
+            <div class="card-body py-2 px-3">
+                <div class="row align-items-center">
+                    <div class="col-md-3">
+                        <div class="d-flex align-items-center">
+                            <div class="text-primary me-2">
+                                <i class="fas fa-box fa-lg"></i>
+                            </div>
+                            <div>
+                                <div class="text-muted small">Всього позицій:</div>
+                                <div class="fs-6 fw-bold" id="totalItems">1</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="d-flex align-items-center">
+                            <div class="text-primary me-2">
+                                <i class="fas fa-cubes fa-lg"></i>
+                            </div>
+                            <div>
+                                <div class="text-muted small">Кількість:</div>
+                                <div class="fs-6 fw-bold" id="totalQuantity">1</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-end">
+                            <a href="{% url 'order_list' %}" class="btn btn-outline-secondary btn-sm me-2">
+                                <i class="fas fa-arrow-left me-1"></i> Повернутися до списку
+                            </a>
+                            <button type="button" id="saveOrderBtn" class="btn btn-success btn-sm">
+                                <i class="fas fa-save me-1"></i> Зберегти замовлення
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Пагінація та навігація -->
+        <div class="d-flex justify-content-between align-items-center mt-2">
+            <div class="pagination-controls">
+                <a href="#" class="btn btn-sm btn-outline-secondary me-1" disabled>
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+                <a href="#" class="btn btn-sm btn-primary me-1">1</a>
+                <a href="#" class="btn btn-sm btn-outline-secondary me-1">2</a>
+                <a href="#" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </div>
+            <div class="text-muted small">
+                Відображення 1-10
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальне вікно для додавання товару -->
+<div class="modal fade" id="addProductModal" tabindex="-1" aria-labelledby="addProductModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addProductModalLabel">Додати товар</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Пошук товару...">
+                        <button class="btn btn-outline-secondary" type="button">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-hover">
+                        <thead class="sticky-top bg-white">
+                            <tr>
+                                <th><input type="checkbox" class="form-check-input" id="selectAllProducts"></th>
+                                <th>Назва продукту</th>
+                                <th>Категорія</th>
+                                <th>Залишок</th>
+                                <th>Ціна</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for product in products %}
+                            <tr>
+                                <td><input type="checkbox" class="form-check-input product-checkbox" value="{{ product.id }}"></td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% if product.image %}
+                                        <img src="{{ product.image.url }}" alt="{{ product.name }}" class="me-2" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">
+                                        {% else %}
+                                        <img src="/static/img/no-image.png" alt="No Image" class="me-2" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">
+                                        {% endif %}
+                                        <div>{{ product.name }}</div>
+                                    </div>
+                                </td>
+                                <td>{{ product.category.name }}</td>
+                                <td>{{ product.quantity }} {{ product.measurement_unit.name }}</td>
+                                <td>{{ product.price }} грн</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-primary btn-sm" id="addSelectedProducts">Додати вибрані товари</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const orderForm = document.getElementById('orderForm');
+    const orderItemsBody = document.getElementById('orderItemsBody');
+    const emptyItemsPlaceholder = document.getElementById('emptyItemsPlaceholder');
+    const addItemBtn = document.getElementById('addItemBtn');
+    const saveOrderBtn = document.getElementById('saveOrderBtn');
+    
+    // Ініціалізація модального вікна через Bootstrap 5
+    const addProductModal = new bootstrap.Modal(document.getElementById('addProductModal'));
+    
+    // Додавання товару - відкриття модального вікна
+    addItemBtn.addEventListener('click', function() {
+        addProductModal.show();
+    });
+    
+    // Обробка вибору всіх товарів
+    document.getElementById('selectAllProducts').addEventListener('change', function() {
+        const isChecked = this.checked;
+        document.querySelectorAll('.product-checkbox').forEach(function(checkbox) {
+            checkbox.checked = isChecked;
+        });
+    });
+    
+    // Обробка кнопок фільтрів
+    document.querySelectorAll('.filter-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            // Знімаємо активний клас з усіх кнопок
+            document.querySelectorAll('.filter-btn').forEach(function(b) {
+                b.classList.remove('active');
+            });
+            
+            // Додаємо активний клас до натиснутої кнопки
+            this.classList.add('active');
+            
+            const filterType = this.dataset.filter;
+            console.log(`Фільтрація за: ${filterType}`);
+            
+            // Тут можна додати логіку фільтрації (буде реалізовано пізніше)
+        });
+    });
+    
+    // Додавання вибраних товарів
+    document.getElementById('addSelectedProducts').addEventListener('click', function() {
+        const selectedProducts = document.querySelectorAll('.product-checkbox:checked');
+        
+        if (selectedProducts.length === 0) {
+            alert('Будь ласка, виберіть хоча б один товар');
+            return;
+        }
+        
+        // Додаємо вибрані товари в таблицю замовлення
+        selectedProducts.forEach(function(checkbox) {
+            const productId = checkbox.value;
+            const productRow = checkbox.closest('tr');
+            const productName = productRow.querySelector('td:nth-child(2)').textContent.trim();
+            const productImage = productRow.querySelector('img').src;
+            const productCategory = productRow.querySelector('td:nth-child(3)').textContent.trim();
+            const productUnit = productRow.querySelector('td:nth-child(4)').textContent.split(' ').pop();
+            
+            // Створюємо новий рядок товару
+            addProductToOrder(productId, productName, productImage, productCategory, productUnit);
+        });
+        
+        // Оновлюємо статистику
+        updateOrderStats();
+        
+        // Закриваємо модальне вікно
+        addProductModal.hide();
+    });
+    
+    // Функція додавання товару до замовлення
+    function addProductToOrder(id, name, image, category, unit) {
+        const row = document.createElement('tr');
+        row.className = 'order-item';
+        row.dataset.id = id;
+        
+        row.innerHTML = `
+            <td>
+                <div class="d-flex align-items-center">
+                    <div class="form-check me-2">
+                        <input class="form-check-input" type="checkbox" checked>
+                    </div>
+                    <img src="${image}" alt="${name}" class="me-2" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">
+                    <div>
+                        <div class="fw-medium">${name}</div>
+                        <div class="d-flex text-muted small">
+                            <span class="me-2">${category}</span>
+                        </div>
+                    </div>
+                </div>
+            </td>
+            <td style="width: 150px;">
+                <div class="input-group">
+                    <input type="number" class="form-control form-control-sm" value="1" min="1">
+                    <div class="input-group-text p-0 border-0" style="background: transparent;">
+                        <div class="d-flex flex-column">
+                            <button type="button" class="btn btn-sm btn-outline-secondary increment-btn rounded-0 border-start-0 border-end-0" style="height: 18px; padding: 0; width: 24px; line-height: 15px;">
+                                <i class="fas fa-chevron-up" style="font-size: 8px;"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary decrement-btn rounded-0 border-start-0 border-end-0" style="height: 18px; padding: 0; width: 24px; line-height: 15px;">
+                                <i class="fas fa-chevron-down" style="font-size: 8px;"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <span class="input-group-text">${unit}</span>
+                </div>
+            </td>
+            <td class="text-center" style="width: 60px;">
+                <button type="button" class="btn btn-outline-danger btn-sm remove-item py-1 px-2">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </td>
+        `;
+        
+        // Додаємо новий рядок в таблицю
+        orderItemsBody.appendChild(row);
+        
+        // Сховати повідомлення про відсутність товарів
+        emptyItemsPlaceholder.classList.add('d-none');
+        
+        // Додаємо обробники до нового рядка
+        initItemRow(row);
+    }
+    
+    // Ініціалізація обробників для рядка товару
+    function initItemRow(row) {
+        const removeBtn = row.querySelector('.remove-item');
+        const incrementBtn = row.querySelector('.increment-btn');
+        const decrementBtn = row.querySelector('.decrement-btn');
+        const quantityInput = row.querySelector('input[type="number"]');
+        
+        removeBtn.addEventListener('click', function() {
+            row.remove();
+            
+            // Якщо немає рядків товарів, показуємо повідомлення
+            if (orderItemsBody.children.length === 0) {
+                emptyItemsPlaceholder.classList.remove('d-none');
+            }
+            
+            // Оновлюємо статистику
+            updateOrderStats();
+        });
+        
+        incrementBtn.addEventListener('click', function() {
+            const currentValue = parseInt(quantityInput.value);
+            quantityInput.value = currentValue + 1;
+            updateOrderStats();
+        });
+        
+        decrementBtn.addEventListener('click', function() {
+            const currentValue = parseInt(quantityInput.value);
+            if (currentValue > 1) {
+                quantityInput.value = currentValue - 1;
+                updateOrderStats();
+            }
+        });
+        
+        quantityInput.addEventListener('change', function() {
+            updateOrderStats();
+        });
+    }
+    
+    // Ініціалізуємо існуючі рядки
+    document.querySelectorAll('#orderItemsBody .order-item').forEach(function(row) {
+        initItemRow(row);
+    });
+    
+    // Оновлення статистики замовлення
+    function updateOrderStats() {
+        const totalItems = document.querySelectorAll('#orderItemsBody .order-item').length;
+        let totalQuantity = 0;
+        
+        document.querySelectorAll('#orderItemsBody .order-item input[type="number"]').forEach(function(input) {
+            totalQuantity += parseInt(input.value);
+        });
+        
+        document.getElementById('totalItems').textContent = totalItems;
+        document.getElementById('totalQuantity').textContent = totalQuantity;
+    }
+    
+    // Початкова статистика
+    updateOrderStats();
+    
+    // Обробка збереження замовлення
+    saveOrderBtn.addEventListener('click', function() {
+        // Збираємо дані про товари
+        const items = [];
+        document.querySelectorAll('#orderItemsBody .order-item').forEach(function(row) {
+            const productId = row.dataset.id;
+            const quantity = row.querySelector('input[type="number"]').value;
+            
+            items.push({
+                product_id: productId,
+                quantity: quantity
+            });
+        });
+        
+        // Створюємо прихований input для товарів
+        const itemsInput = document.createElement('input');
+        itemsInput.type = 'hidden';
+        itemsInput.name = 'items_json';
+        itemsInput.value = JSON.stringify(items);
+        orderForm.appendChild(itemsInput);
+        
+        // Відправляємо форму
+        orderForm.submit();
+    });
+});
+</script>
+{% endblock %}
+{% endblock %} 

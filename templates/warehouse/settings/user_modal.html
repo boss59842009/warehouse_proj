@@ -1,0 +1,101 @@
+{% load warehouse_tags %}
+
+<div class="modal fade" id="userModal" tabindex="-1" aria-labelledby="userModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="userModalLabel">Додавання користувача</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="userForm" method="post" action="{% url 'settings_index' %}">
+                {% csrf_token %}
+                <input type="hidden" name="user_id" id="user_id">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="username" class="form-label required-field">Логін</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
+                        <div class="invalid-feedback">Будь ласка, введіть логін користувача</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="full_name" class="form-label required-field">ПІБ</label>
+                        <input type="text" class="form-control" id="full_name" name="full_name" required>
+                        <div class="invalid-feedback">Будь ласка, введіть ПІБ користувача</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" name="email">
+                        <div class="invalid-feedback">Будь ласка, введіть коректний email</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password" class="form-label password-field">Пароль</label>
+                        <input type="password" class="form-control" id="password" name="password">
+                        <div class="invalid-feedback">Пароль повинен містити не менше 8 символів</div>
+                        <small id="passwordHelp" class="form-text text-muted">Залиште порожнім, якщо не хочете змінювати пароль</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="role" class="form-label required-field">Роль</label>
+                        <select class="form-select" id="role" name="role" required>
+                            <option value="" selected disabled>Оберіть роль</option>
+                            <option value="admin">Адміністратор</option>
+                            <option value="manager">Менеджер</option>
+                            <option value="warehouse">Складський працівник</option>
+                            <option value="readonly">Тільки перегляд</option>
+                        </select>
+                        <div class="invalid-feedback">Будь ласка, оберіть роль користувача</div>
+                    </div>
+                    
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="is_active" name="is_active" checked>
+                        <label class="form-check-label" for="is_active">Активний</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Скасувати</button>
+                    <button type="submit" class="btn btn-primary">Зберегти</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Form validation
+        const form = document.getElementById('userForm');
+        
+        form.addEventListener('submit', function(event) {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            
+            form.classList.add('was-validated');
+        });
+        
+        // Reset form when modal is closed
+        const modal = document.getElementById('userModal');
+        modal.addEventListener('hidden.bs.modal', function() {
+            form.classList.remove('was-validated');
+            form.reset();
+            document.getElementById('passwordHelp').style.display = 'none';
+            document.getElementById('userModalLabel').textContent = 'Додавання користувача';
+            document.getElementById('user_id').value = '';
+        });
+        
+        // Function to load user data for editing
+        window.loadUserData = function(userId, username, fullName, email, role, isActive) {
+            document.getElementById('userModalLabel').textContent = 'Редагування користувача';
+            document.getElementById('user_id').value = userId;
+            document.getElementById('username').value = username;
+            document.getElementById('full_name').value = fullName;
+            document.getElementById('email').value = email;
+            document.getElementById('role').value = role;
+            document.getElementById('is_active').checked = isActive;
+            document.getElementById('passwordHelp').style.display = 'block';
+        };
+    });
+</script> 

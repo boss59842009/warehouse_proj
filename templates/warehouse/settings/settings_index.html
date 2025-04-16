@@ -1,0 +1,438 @@
+{% extends 'warehouse/base.html' %}
+{% load static %}
+{% load warehouse_tags %}
+
+{% block title %}Налаштування{% endblock %}
+
+{% block content %}
+<style>
+    .required-field::after {
+        content: "*";
+        color: #dc3545;
+        margin-left: 4px;
+    }
+    
+    .modal-header {
+        border-bottom: 2px solid #f8f9fa;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <h5 class="mb-4">Налаштування</h5>
+            
+            <!-- Nav tabs - simplified design matching mockup -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <ul class="nav nav-tabs">
+                        <li class="nav-item">
+                            <a class="btn btn-outline-secondary btn-sm  active" href="#parameters" data-bs-toggle="tab">Параметри</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="btn btn-outline-secondary btn-sm" href="#users" data-bs-toggle="tab">Користувачі</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="btn btn-outline-secondary btn-sm" href="#system" data-bs-toggle="tab">Система</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Tab content -->
+            <div class="tab-content">
+                <!-- Parameters Tab -->
+                <div class="tab-pane fade show active" id="parameters">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <h6 class="mb-3">Параметри</h6>
+                            
+                            <div class="text-end mb-3">
+                                <a href="{% url 'manage_categories' %}" class="btn btn-outline-secondary btn-sm">
+                                    Категорії
+                                </a>
+                                <a href="{% url 'manage_package_types' %}" class="btn btn-outline-secondary btn-sm">
+                                    Упаковка
+                                </a>
+                                <a href="{% url 'manage_measurement_units' %}" class="btn btn-outline-secondary btn-sm">
+                                    Од. виміру
+                                </a>
+                                <a href="{% url 'manage_cultures' %}" class="btn btn-outline-secondary btn-sm">
+                                    Культури
+                                </a>
+                                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addParameterModal">
+                                    Додати
+                                </button>
+                            </div>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th scope="col" width="5%">#</th>
+                                            <th scope="col" width="15%">Тип</th>
+                                            <th scope="col" width="25%">Назва</th>
+                                            <th scope="col" width="35%">Опис</th>
+                                            <th scope="col" width="10%">Статус</th>
+                                            <th scope="col" width="10%">Дії</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% if parameters %}
+                                            {% for param in parameters %}
+                                            <tr>
+                                                <td>{{ forloop.counter }}</td>
+                                                <td>
+                                                    {% if param.parameter_type == 'category' %}
+                                                        <span class="badge bg-info text-dark">Категорія</span>
+                                                    {% elif param.parameter_type == 'import_name' %}
+                                                        <span class="badge bg-warning text-dark">Назва (імпу)</span>
+                                                    {% elif param.parameter_type == 'lot' %}
+                                                        <span class="badge bg-success">Лот</span>
+                                                    {% elif param.parameter_type == 'package' %}
+                                                        <span class="badge bg-primary">Упаковка</span>
+                                                    {% elif param.parameter_type == 'unit' %}
+                                                        <span class="badge bg-secondary">Од. виміру</span>
+                                                    {% else %}
+                                                        <span class="badge bg-dark">{{ param.parameter_type }}</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>{{ param.name }}</td>
+                                                <td>{{ param.description|default:"-" }}</td>
+                                                <td>
+                                                    {% if param.is_active %}
+                                                        <span class="badge bg-success">Активний</span>
+                                                    {% else %}
+                                                        <span class="badge bg-danger">Неактивний</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <div class="btn-group btn-group-sm" role="group">
+                                                        <a href="{% url 'edit_system_parameter' param.id %}" class="btn btn-outline-primary">
+                                                            <i class="bi bi-pencil"></i>
+                                                        </a>
+                                                        <button type="button" class="btn btn-outline-danger" 
+                                                            onclick="confirmDelete('{% url 'delete_system_parameter' param.id %}', '{{ param.name }}')">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        {% else %}
+                                            <tr>
+                                                <td colspan="6" class="text-center py-3">Немає параметрів у системі</td>
+                                            </tr>
+                                        {% endif %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            {% if parameters.has_other_pages %}
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <p class="text-muted small mb-0">Показано {{ parameters|length }} із {{ paginator.count }} записів</p>
+                                <nav aria-label="Навігація сторінками">
+                                    <ul class="pagination pagination-sm mb-0">
+                                        {% if parameters.has_previous %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page=1" aria-label="First">
+                                                    <span aria-hidden="true">&laquo;&laquo;</span>
+                                                </a>
+                                            </li>
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ parameters.previous_page_number }}" aria-label="Previous">
+                                                    <span aria-hidden="true">&laquo;</span>
+                                                </a>
+                                            </li>
+                                        {% endif %}
+                                        
+                                        {% for num in parameters.paginator.page_range %}
+                                            {% if parameters.number == num %}
+                                                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                            {% elif num > parameters.number|add:'-3' and num < parameters.number|add:'3' %}
+                                                <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                                            {% endif %}
+                                        {% endfor %}
+                                        
+                                        {% if parameters.has_next %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ parameters.next_page_number }}" aria-label="Next">
+                                                    <span aria-hidden="true">&raquo;</span>
+                                                </a>
+                                            </li>
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ parameters.paginator.num_pages }}" aria-label="Last">
+                                                    <span aria-hidden="true">&raquo;&raquo;</span>
+                                                </a>
+                                            </li>
+                                        {% endif %}
+                                    </ul>
+                                </nav>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Users Tab -->
+                <div class="tab-pane fade" id="users">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <h6 class="mb-3">Користувачі системи</h6>
+                            <div class="text-end mb-3">
+                                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#userModal">
+                                    <i class="bi bi-plus-lg me-1"></i>Додати користувача
+                                </button>
+                            </div>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th scope="col">#</th>
+                                            <th scope="col">Ім'я</th>
+                                            <th scope="col">Email</th>
+                                            <th scope="col">Роль</th>
+                                            <th scope="col">Статус</th>
+                                            <th scope="col">Дії</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% if users %}
+                                            {% for user in users %}
+                                            <tr>
+                                                <td>{{ forloop.counter }}</td>
+                                                <td>{{ user.get_full_name }}</td>
+                                                <td>{{ user.email }}</td>
+                                                <td>
+                                                    {% if user.is_staff and user.is_superuser %}
+                                                        <span class="badge bg-danger">Адміністратор</span>
+                                                    {% elif user.is_staff %}
+                                                        <span class="badge bg-warning text-dark">Менеджер</span>
+                                                    {% else %}
+                                                        <span class="badge bg-info text-dark">Користувач</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if user.is_active %}
+                                                        <span class="badge bg-success">Активний</span>
+                                                    {% else %}
+                                                        <span class="badge bg-danger">Неактивний</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <div class="btn-group btn-group-sm" role="group">
+                                                        <button type="button" class="btn btn-outline-primary edit-user-btn" 
+                                                            data-user-id="{{ user.id }}"
+                                                            data-username="{{ user.username }}"
+                                                            data-full-name="{{ user.get_full_name }}"
+                                                            data-email="{{ user.email|default:'' }}"
+                                                            data-role="{% if user.is_staff and user.is_superuser %}admin{% elif user.is_staff %}manager{% else %}readonly{% endif %}"
+                                                            data-is-active="{{ user.is_active|yesno:'true,false' }}">
+                                                            <i class="bi bi-pencil"></i>
+                                                        </button>
+                                                        {% if not user.is_superuser %}
+                                                        <button type="button" class="btn btn-outline-danger delete-user-btn" 
+                                                            data-user-id="{{ user.id }}"
+                                                            data-username="{{ user.username }}">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                        {% endif %}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        {% else %}
+                                            <tr>
+                                                <td colspan="6" class="text-center py-3">Немає користувачів у системі</td>
+                                            </tr>
+                                        {% endif %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- System Tab -->
+                <div class="tab-pane fade" id="system">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <h6 class="mb-3">Інформація про систему</h6>
+                            <table class="table table-sm">
+                                <tbody>
+                                    <tr>
+                                        <td>Версія системи:</td>
+                                        <td><span class="badge bg-primary">{{ system_version }}</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Дата оновлення:</td>
+                                        <td>{{ system_updated_at|date:"d.m.Y" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Кількість користувачів:</td>
+                                        <td>{{ users_count }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Кількість продуктів:</td>
+                                        <td>{{ products_count }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Кількість замовлень:</td>
+                                        <td>{{ orders_count }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="card shadow-sm mt-4">
+                        <div class="card-body">
+                            <h6 class="mb-3">Налаштування бази даних</h6>
+                            <form method="post" action="{% url 'backup_settings' %}">
+                                {% csrf_token %}
+                                <div class="mb-3">
+                                    <label for="backup_enabled" class="form-label">Резервне копіювання</label>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="backup_enabled" name="backup_enabled" {% if backup_enabled %}checked{% endif %}>
+                                        <label class="form-check-label" for="backup_enabled">Увімкнено</label>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="backup_frequency" class="form-label">Частота резервного копіювання</label>
+                                    <select class="form-select" id="backup_frequency" name="backup_frequency">
+                                        <option value="daily" {% if backup_frequency == 'daily' %}selected{% endif %}>Щоденно</option>
+                                        <option value="weekly" {% if backup_frequency == 'weekly' %}selected{% endif %}>Щотижня</option>
+                                        <option value="monthly" {% if backup_frequency == 'monthly' %}selected{% endif %}>Щомісяця</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-sm">Зберегти налаштування</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include Parameter Modal -->
+{% include 'warehouse/settings/parameter_modal.html' %}
+
+<!-- Include User Modal -->
+{% include 'warehouse/settings/user_modal.html' %}
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteConfirmModalLabel">Підтвердження видалення</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Ви впевнені, що хочете видалити "<span id="deleteItemName"></span>"?</p>
+                <p class="text-danger mb-0"><small>Ця дія не може бути скасована.</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Скасувати</button>
+                <a href="#" id="confirmDeleteBtn" class="btn btn-danger btn-sm">Видалити</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete User Confirmation Modal -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteUserModalLabel">Видалити користувача</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Ви впевнені, що хочете видалити користувача <span id="deleteUserName"></span>?</p>
+                <p class="text-danger mb-0"><small>Ця дія не може бути скасована.</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <form id="deleteUserForm" method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="user_id" id="delete_user_id">
+                    <button type="submit" class="btn btn-danger">Видалити</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extrajs %}
+<script>
+    function confirmDelete(deleteUrl, itemName) {
+        document.getElementById('deleteItemName').textContent = itemName;
+        document.getElementById('confirmDeleteBtn').setAttribute('href', deleteUrl);
+        
+        const deleteModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+        deleteModal.show();
+    }
+    
+    // Зберегти активну вкладку між перезавантаженнями сторінки
+    document.addEventListener('DOMContentLoaded', function() {
+        const hash = window.location.hash;
+        if (hash) {
+            const tabElement = document.querySelector(`a[href="${hash}"]`);
+            if (tabElement) {
+                const tab = new bootstrap.Tab(tabElement);
+                tab.show();
+            }
+        }
+        
+        // Оновлювати URL при зміні вкладки
+        document.querySelectorAll('.nav-tabs .nav-link').forEach(tabEl => {
+            tabEl.addEventListener('shown.bs.tab', function(e) {
+                const id = e.target.getAttribute('href');
+                history.pushState(null, null, id);
+            });
+        });
+        
+        // Setup edit user buttons
+        const editButtons = document.querySelectorAll('.edit-user-btn');
+        editButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const userId = this.dataset.userId;
+                const username = this.dataset.username;
+                const fullName = this.dataset.fullName;
+                const email = this.dataset.email;
+                const role = this.dataset.role;
+                const isActive = this.dataset.isActive === 'true';
+                
+                // Call function from user_modal.html to load user data into form
+                if (typeof loadUserData === 'function') {
+                    loadUserData(userId, username, fullName, email, role, isActive);
+                }
+                
+                // Show the modal
+                const userModal = new bootstrap.Modal(document.getElementById('userModal'));
+                userModal.show();
+            });
+        });
+        
+        // Setup delete user buttons
+        const deleteButtons = document.querySelectorAll('.delete-user-btn');
+        deleteButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const userId = this.dataset.userId;
+                const username = this.dataset.username;
+                
+                document.getElementById('delete_user_id').value = userId;
+                document.getElementById('deleteUserName').textContent = username;
+                
+                // Show the delete confirmation modal
+                const deleteUserModal = new bootstrap.Modal(document.getElementById('deleteUserModal'));
+                deleteUserModal.show();
+            });
+        });
+    });
+</script>
+{% endblock %} 

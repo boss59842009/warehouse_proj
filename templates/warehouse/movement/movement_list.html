@@ -1,0 +1,275 @@
+{% extends 'warehouse/base.html' %}
+{% load warehouse_tags %}
+
+{% block title %}Рух товарів | Складський облік{% endblock %}
+
+{% block header %}Рух товарів{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col-md-6">
+        <div class="d-flex">
+            <a href="{% url 'movement_create' %}" class="btn btn-primary btn-sm me-2">
+                <i class="fas fa-plus me-1"></i> Новий рух товару
+            </a>
+            <a href="{% url 'product_list' %}" class="btn btn-outline-secondary btn-sm me-2">
+                <i class="fas fa-cubes me-1"></i> Товари
+            </a>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <form method="get" class="d-flex justify-content-end">
+            <div class="input-group input-group-sm" style="max-width: 300px;">
+                <input type="text" name="search" class="form-control" placeholder="Пошук за товаром..." 
+                       value="{{ request.GET.search|default:'' }}">
+                <button class="btn btn-outline-secondary" type="submit">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border mb-4">
+    <div class="card-header bg-white">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h5 class="card-title mb-0">Рух товарів</h5>
+            
+        </div>
+     
+    
+    <!-- Фільтри -->
+    <div class="product-filters px-3 pt-2 pb-1 border-bottom bg-light">
+        <div class="d-flex flex-wrap align-items-center">
+            <div class="filter-label me-2 my-1 fw-medium">Фільтри:</div>
+            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="product">
+                Назва товару
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="type">
+                Тип руху
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="date">
+                Дата
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="user">
+                Користувач
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="document">
+                Документ
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="lot">
+                Лот
+            </button>
+        </div>
+    </div>
+    
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>Товар</th>
+                        <th>Тип руху</th>
+                        <th>Кількість</th>
+                        <th>Дата</th>
+                        <th>Документ</th>
+                        <th>Лот</th>
+                        <th>Виконавець</th>
+                        <th>Дії</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for movement in page_obj %}
+                    <tr>
+                        <td>{{ movement.id }}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                {% if movement.product.image %}
+                                <img src="{{ movement.product.image.url }}" alt="{{ movement.product.name }}" class="me-2" 
+                                     style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">
+                                {% else %}
+                                <img src="/static/img/no-image.png" alt="No Image" class="me-2" 
+                                     style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">
+                                {% endif %}
+                                <div>
+                                    <div class="fw-medium">{{ movement.product.name }}</div>
+                                    <div class="text-muted small">{{ movement.product.category.name }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if movement.movement_type == 'incoming' %}
+                            <span class="badge bg-success">Надходження</span>
+                            {% elif movement.movement_type == 'outgoing' %}
+                            <span class="badge bg-primary">Видача</span>
+                            {% elif movement.movement_type == 'return' %}
+                            <span class="badge bg-info">Повернення</span>
+                            {% elif movement.movement_type == 'write_off' %}
+                            <span class="badge bg-danger">Списання</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ movement.get_movement_type_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ movement.quantity }} {{ movement.product.measurement_unit.name }}</td>
+                        <td>{{ movement.date|date:"d.m.Y H:i" }}</td>
+                        <td>
+                            {% if movement.document_number %}
+                            {{ movement.document_number }}
+                            {% else %}
+                            <span class="text-muted small">Не вказано</span>
+                            {% endif %}
+                            
+                            {% if movement.order %}
+                            <div class="small">
+                                <a href="{% url 'order_detail' pk=movement.order.id %}" class="text-decoration-none">
+                                    Замовлення #{{ movement.order.id }}
+                                </a>
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if movement.product.lot_number %}
+                            {{ movement.product.lot_number }}
+                            {% else %}
+                            <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ movement.performed_by.username }}</td>
+                        <td>
+                            <div class="btn-group">
+                                <a href="{% url 'movement_detail' pk=movement.id %}" class="btn btn-sm btn-outline-primary py-1 px-2">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'movement_update' pk=movement.id %}" class="btn btn-sm btn-outline-secondary py-1 px-2">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4">
+                            <div class="text-muted">
+                                <i class="fas fa-exchange-alt fa-2x mb-3"></i>
+                                <p>Записів руху товарів поки немає.</p>
+                                <a href="{% url 'movement_create' %}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-plus me-1"></i> Створити рух товару
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Пагінація -->
+    {% if page_obj.has_other_pages %}
+    <div class="card-footer bg-white">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <span class="text-muted small">
+                    Показано {{ page_obj.start_index }}-{{ page_obj.end_index }} з {{ page_obj.paginator.count }}
+                </span>
+            </div>
+            <nav aria-label="Page navigation">
+                <ul class="pagination pagination-sm mb-0">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="First">
+                            <span aria-hidden="true">&laquo;&laquo;</span>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <a class="page-link" href="#" aria-label="First">
+                            <span aria-hidden="true">&laquo;&laquo;</span>
+                        </a>
+                    </li>
+                    <li class="page-item disabled">
+                        <a class="page-link" href="#" aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                        <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Last">
+                            <span aria-hidden="true">&raquo;&raquo;</span>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <a class="page-link" href="#" aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                    <li class="page-item disabled">
+                        <a class="page-link" href="#" aria-label="Last">
+                            <span aria-hidden="true">&raquo;&raquo;</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Обробка кнопок фільтрів
+        document.querySelectorAll('.filter-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                // Знімаємо активний клас з усіх кнопок
+                document.querySelectorAll('.filter-btn').forEach(function(b) {
+                    b.classList.remove('active');
+                });
+                
+                // Додаємо активний клас до натиснутої кнопки
+                this.classList.add('active');
+                
+                const filterType = this.dataset.filter;
+                console.log(`Фільтрація за: ${filterType}`);
+                
+                // Тут можна додати логіку фільтрації (буде реалізовано пізніше)
+            });
+        });
+        
+        // Обробка кнопки додаткових налаштувань
+        const additionalSettingsBtn = document.getElementById('additionalSettingsBtn');
+        if (additionalSettingsBtn) {
+            additionalSettingsBtn.addEventListener('click', function() {
+                alert('Відкрити додаткові налаштування');
+                // Тут можна додати логіку відображення налаштувань
+            });
+        }
+    });
+</script>
+{% endblock %}
+{% endblock %} 

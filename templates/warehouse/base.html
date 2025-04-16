@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Складський облік{% endblock %}</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- DataTables CSS -->
+    <link href="https://cdn.datatables.net/1.13.1/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link href="/static/css/style.css" rel="stylesheet">
+    <style>
+        /* Загальні стилі для кнопок */
+        .btn {
+            font-weight: 500;
+            padding: 0.35rem 0.85rem;
+            border-radius: 4px;
+            transition: all 0.2s ease-in-out;
+        }
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        /* Стилі для кнопок-фільтрів */
+        .filter-btn {
+            padding: 0.25rem 0.6rem;
+            font-size: 0.75rem;
+            border-radius: 4px;
+            background-color: #fff;
+            border: 1px solid #dee2e6;
+            color: #495057;
+        }
+        .filter-btn:hover {
+            background-color: #f8f9fa;
+            border-color: #c1c9d0;
+        }
+        .filter-btn.active {
+            background-color: #e9ecef;
+            border-color: #adb5bd;
+            color: #212529;
+        }
+        
+        /* Стилі для кнопок інкременту/декременту */
+        .increment-btn,
+        .decrement-btn {
+            border-color: #ced4da;
+            margin: 0;
+            padding: 0;
+        }
+        
+        /* Покращення для елементів сайдбара */
+        .nav-link {
+            border-radius: 4px;
+            padding: 0.5rem 0.75rem;
+            margin-bottom: 0.25rem;
+            color: rgba(255,255,255,0.8);
+        }
+        .nav-link:hover {
+            background-color: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+        .nav-link.active {
+            background-color: #0d6efd;
+            color: #fff;
+        }
+        
+        /* Стиль для карток */
+        .card {
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .card-header {
+            background-color: #fff;
+            border-bottom: 1px solid rgba(0,0,0,.125);
+        }
+        :root {
+            --primary-color: #4e73df;
+            --secondary-color: #8e54e9;
+            --info-color: #36b9cc;
+            --dark-color: #343a40;
+            --light-color: #f8f9fc;
+        }
+        
+   
+        .custom-bg {
+            background: linear-gradient(1220deg, var(--primary-color) 83%, var(--secondary-color) 80%);
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="container-fluid">
+        <div class="row flex-nowrap">
+            <div class="col-auto col-md-3 col-xl-2 px-sm-2 px-0 custom-bg">
+                <div class="d-flex flex-column align-items-center align-items-sm-start px-3 pt-2 text-white min-vh-100">
+                    <a href="/" class="d-flex align-items-center pb-3 mb-md-0 me-md-auto text-white text-decoration-none">
+                        <span class="fs-5 d-none d-sm-inline">Складський облік</span>
+                    </a>
+                    <ul class="nav nav-pills flex-column mb-sm-auto mb-0 align-items-center align-items-sm-start w-100" id="menu">
+                        <li class="nav-item w-100">
+                            <a href="{% url 'home' %}" class="nav-link align-middle px-0 {% if request.path == '/' %}active{% endif %}">
+                                <i class="fs-5 fas fa-home"></i> <span class="ms-1 d-none d-sm-inline">Головна</span>
+                            </a>
+                        </li>
+                        <li class="w-100">
+                            <a href="{% url 'order_list' %}" class="nav-link px-0 align-middle {% if '/orders/' in request.path %}active{% endif %}">
+                                <i class="fs-5 fas fa-clipboard-list"></i> <span class="ms-1 d-none d-sm-inline">Замовлення</span>
+                            </a>
+                        </li>
+                        <li class="w-100">
+                            <a href="{% url 'product_list' %}" class="nav-link px-0 align-middle {% if '/products/' in request.path %}active{% endif %}">
+                                <i class="fs-5 fas fa-box-open"></i> <span class="ms-1 d-none d-sm-inline">Товари</span>
+                            </a>
+                        </li>
+                        <li class="w-100">
+                            <a href="{% url 'inventory_list' %}" class="nav-link px-0 align-middle {% if '/inventory/' in request.path %}active{% endif %}">
+                                <i class="fs-5 fas fa-warehouse"></i> <span class="ms-1 d-none d-sm-inline">Залишки</span>
+                            </a>
+                        </li>
+                        <li class="w-100">
+                            <a href="{% url 'movement_list' %}" class="nav-link px-0 align-middle {% if '/movements/' in request.path %}active{% endif %}">
+                                <i class="fs-5 fas fa-exchange-alt"></i> <span class="ms-1 d-none d-sm-inline">Рух товарів</span>
+                            </a>
+                        </li>
+                        <li class="w-100">
+                            <a href="{% url 'settings_index' %}" class="nav-link px-0 align-middle {% if '/settings/' in request.path %}active{% endif %}">
+                                <i class="fs-5 fas fa-cog"></i> <span class="ms-1 d-none d-sm-inline">Параметри</span>
+                            </a>
+                        </li>
+                    </ul>
+                    <hr>
+                    <div class="dropdown pb-4">
+                        <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" id="dropdownUser1" data-bs-toggle="dropdown" aria-expanded="false">
+                            <img src="https://github.com/mdo.png" alt="User" width="30" height="30" class="rounded-circle">
+                            <span class="d-none d-sm-inline mx-1">{{ request.user.username }}</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-dark text-small shadow" aria-labelledby="dropdownUser1">
+                            <li><a class="dropdown-item" href="{% url 'password_change' %}">Змінити пароль</a></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li><a class="dropdown-item" href="{% url 'logout' %}">Вийти</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <!-- Main content -->
+            <div class="col py-3">
+                <!-- Messages -->
+                {% if messages %}
+                <div class="messages">
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <!-- Page title -->
+                <h2 class="mb-4">{% block header %}Головна сторінка{% endblock %}</h2>
+                
+                <!-- Main content -->
+                <div class="container-fluid">
+                    {% block content %}{% endblock %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- DataTables JS -->
+    <script src="https://cdn.datatables.net/1.13.1/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.1/js/dataTables.bootstrap5.min.js"></script>
+    
+    <!-- Custom JS -->
+    <script src="/static/js/main.js"></script>
+    
+    <!-- Initialize DataTables -->
+    <script>
+        $(document).ready(function() {
+            $('.datatable').DataTable({
+                language: {
+                    url: '//cdn.datatables.net/plug-ins/1.13.1/i18n/uk.json'
+                },
+                responsive: true
+            });
+        });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html> 

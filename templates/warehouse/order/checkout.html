@@ -1,0 +1,113 @@
+{% extends 'warehouse/base.html' %}
+
+{% block title %}Оформлення замовлення | Складський облік{% endblock %}
+
+{% block header %}Оформлення замовлення{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <!-- Order items -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Товари для замовлення</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped mb-0">
+                        <thead>
+                            <tr>
+                                <th>Товар</th>
+                                <th>Ціна</th>
+                                <th>Кількість</th>
+                                <th>Сума</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in cart_items %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% if item.product.image %}
+                                        <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="me-2" style="width: 50px; height: 50px; object-fit: cover;">
+                                        {% else %}
+                                        <img src="/static/img/no-image.png" alt="No Image" class="me-2" style="width: 50px; height: 50px; object-fit: cover;">
+                                        {% endif %}
+                                        <div>
+                                            <h6 class="mb-0">{{ item.product.name }}</h6>
+                                            <small class="text-muted">
+                                                {{ item.product.category.name }}
+                                                {% if item.product.culture %}
+                                                | {{ item.product.culture.name }}
+                                                {% endif %}
+                                            </small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>{{ item.price }} грн</td>
+                                <td>
+                                    {{ item.quantity }}
+                                    {% if item.product.measurement_unit %}
+                                    {{ item.product.measurement_unit.name }}
+                                    {% endif %}
+                                </td>
+                                <td>{{ item.total }} грн</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th colspan="3" class="text-end">Загальна сума:</th>
+                                <th>{{ total_price }} грн</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Checkout form -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Деталі замовлення</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'checkout' %}">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="id_comment" class="form-label">Коментар до замовлення</label>
+                        {{ form.comment }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Статус:</label>
+                        <div class="form-control bg-light">В обробці</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Користувач:</label>
+                        <div class="form-control bg-light">{{ request.user.username }}</div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">Дата:</label>
+                        <div class="form-control bg-light">{% now "d.m.Y H:i" %}</div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-check me-1"></i> Підтвердити замовлення
+                        </button>
+                        <a href="{% url 'view_cart' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-1"></i> Повернутись до кошика
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

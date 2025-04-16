@@ -1,0 +1,72 @@
+{% load warehouse_tags %}
+
+<div class="modal fade" id="addParameterModal" tabindex="-1" aria-labelledby="addParameterModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addParameterModalLabel">Додавання параметру</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="parameterForm" method="post" action="{% url 'add_system_parameter' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="parameter_type" class="form-label required-field">Тип параметру</label>
+                        <select class="form-select" id="parameter_type" name="parameter_type" required>
+                            <option value="" selected disabled>Оберіть тип параметру</option>
+                            <option value="category">Категорія</option>
+                            <option value="import_name">Назва (імпорт)</option>
+                            <option value="lot">Лот</option>
+                            <option value="package">Упаковка</option>
+                            <option value="unit">Одиниця виміру</option>
+                        </select>
+                        <div class="invalid-feedback">Будь ласка, оберіть тип параметру</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="parameter_name" class="form-label required-field">Назва параметру</label>
+                        <input type="text" class="form-control" id="parameter_name" name="name" required>
+                        <div class="invalid-feedback">Будь ласка, введіть назву параметру</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="parameter_description" class="form-label">Опис</label>
+                        <textarea class="form-control" id="parameter_description" name="description" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="parameter_active" name="is_active" checked>
+                        <label class="form-check-label" for="parameter_active">Активний</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Скасувати</button>
+                    <button type="submit" class="btn btn-primary" id="saveParameterBtn">Зберегти</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Form validation
+        const form = document.getElementById('parameterForm');
+        
+        form.addEventListener('submit', function(event) {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            
+            form.classList.add('was-validated');
+        });
+        
+        // Reset form when modal is closed
+        const modal = document.getElementById('addParameterModal');
+        modal.addEventListener('hidden.bs.modal', function() {
+            form.classList.remove('was-validated');
+            form.reset();
+        });
+    });
+</script> 
