@@ -1,33 +1,23 @@
 from django import forms
 from django.forms import inlineformset_factory
 from .models import (
-    Product, Category, PackageType, MeasurementUnit, Culture,
-    Order, OrderItem, Inventory, ProductMovement, ProductImage,
-    BackupSettings, SystemParameter
+    Product, ProductImage, PackageType, MeasurementUnit, Culture,
+    Order, OrderItem, Inventory, ProductMovement,
+    BackupSettings, SystemParameter, ProductVariation, ProductVariationImage
 )
 
 class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
         fields = [
-            'name', 'real_name', 'culture', 'category', 'package_type', 
-            'measurement_unit', 'lot_number', 'import_name', 'quantity',
-            'packages_count', 'image', 'description', 'is_available', 'price'
+            'real_name', 'culture', 'quantity', 'description', 'code'
         ]
         widgets = {
-            'description': forms.Textarea(attrs={'rows': 3}),
-            'name': forms.TextInput(attrs={'class': 'form-control'}),
             'real_name': forms.TextInput(attrs={'class': 'form-control'}),
             'culture': forms.Select(attrs={'class': 'form-select'}),
-            'category': forms.Select(attrs={'class': 'form-select'}),
-            'package_type': forms.Select(attrs={'class': 'form-select'}),
-            'measurement_unit': forms.Select(attrs={'class': 'form-select'}),
-            'lot_number': forms.TextInput(attrs={'class': 'form-control'}),
-            'import_name': forms.TextInput(attrs={'class': 'form-control'}),
             'quantity': forms.NumberInput(attrs={'class': 'form-control'}),
-            'packages_count': forms.NumberInput(attrs={'class': 'form-control'}),
-            'price': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
-            'is_available': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'description': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
+            'code': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
 class ProductImageForm(forms.ModelForm):
@@ -36,17 +26,39 @@ class ProductImageForm(forms.ModelForm):
         fields = ['image']
 
 ProductImageFormSet = inlineformset_factory(
-    Product, ProductImage, form=ProductImageForm, 
-    extra=1, can_delete=True
+    Product,
+    ProductImage,
+    fields=['image'],
+    extra=0,  # Не створювати додаткові порожні форми
+    can_delete=True,
+    max_num=10
 )
 
-class CategoryForm(forms.ModelForm):
+class ProductVariationForm(forms.ModelForm):
     class Meta:
-        model = Category
-        fields = ['name']
+        model = ProductVariation
+        fields = [
+            'real_name', 'quantity', 'description'
+        ]
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control'})
+            'real_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'quantity': forms.NumberInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
         }
+
+class ProductVariationImageForm(forms.ModelForm):
+    class Meta:
+        model = ProductVariationImage
+        fields = ['image']
+
+ProductVariationImageFormSet = inlineformset_factory(
+    ProductVariation,
+    ProductVariationImage,
+    fields=['image'],
+    extra=0,  # Не створювати додаткові порожні форми
+    can_delete=True,
+    max_num=10
+)
 
 class PackageTypeForm(forms.ModelForm):
     class Meta:
@@ -160,11 +172,12 @@ class CheckoutForm(forms.Form):
         attrs={'rows': 3, 'class': 'form-control', 'placeholder': 'Коментар до замовлення'}))
 
 class ProductFilterForm(forms.Form):
-    category = forms.ModelChoiceField(
-        queryset=Category.objects.all(), 
+    real_name = forms.CharField(
         required=False,
-        empty_label="Всі категорії",
-        widget=forms.Select(attrs={'class': 'form-select'})
+        widget=forms.TextInput(attrs={
+            'class': 'form-control', 
+            'placeholder': 'Пошук за справжньою назвою'
+        })
     )
     culture = forms.ModelChoiceField(
         queryset=Culture.objects.all(), 
@@ -190,12 +203,7 @@ class ReportForm(forms.Form):
         ('csv', 'CSV'),
         ('pdf', 'PDF'),
     ]
-    category = forms.ModelChoiceField(
-        queryset=Category.objects.all(), 
-        required=False,
-        empty_label="Всі категорії",
-        widget=forms.Select(attrs={'class': 'form-select'})
-    )
+
     format = forms.ChoiceField(
         choices=REPORT_FORMATS, 
         widget=forms.RadioSelect(attrs={'class': 'form-check-input'}),

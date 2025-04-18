@@ -1,0 +1,278 @@
+{% extends 'warehouse/base.html' %}
+
+{% block title %}{% if not product %}{% else %}Створення{% endif %} варіації товару | Складський облік{% endblock %}
+
+{% block header %}{% if not product %}Редагування{% else %}Створення{% endif %} варіації товару{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow-sm border mb-4">
+            <div class="card-header bg-white">
+                <h5 class="card-title mb-0">Інформація про варіацію товару</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data" id="productForm">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.real_name.id_for_label }}" class="form-label">Назва справжня</label>
+                            {{ form.real_name }}
+                            {% if form.real_name.errors %}
+                            <div class="text-danger small mt-1">{{ form.real_name.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.parent_product.id_for_label }}" class="form-label">Основний товар</label>
+                            <input type="text" class="form-control" value="{{ product.real_name }}" disabled>
+                            {% if form.parent_product.errors %}
+                            <div class="text-danger small mt-1">{{ form.parent_product.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.culture.id_for_label }}" class="form-label">Культура</label>
+                            <input type="text" class="form-control" value="{{ product.culture }}" disabled>
+                            {% if form.culture.errors %}
+                            <div class="text-danger small mt-1">{{ form.culture.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.quantity.id_for_label }}" class="form-label">Кількість на складі</label>
+                            {{ form.quantity }}
+                            {% if form.quantity.errors %}
+                            <div class="text-danger small mt-1">{{ form.quantity.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Зображення товару</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="image-formset">
+                                <!-- Поля управління формсетом (Django генерує їх автоматично) -->
+                                {{ formset.management_form }}
+                                
+                                <div class="row" id="image-container">
+                                    {% for img_form in formset %}
+                                    {% if img_form.instance.pk and not img_form.instance.DELETE %}
+                                    <div class="col-md-3 mb-3 image-item" data-index="{{ forloop.counter0 }}">
+                                        <div class="image-form" style="width: 150px; height: 150px; display: block;">
+                                            <img src="{{ img_form.instance.image.url }}" alt="Попередній перегляд" class="img-thumbnail" style="max-width: 100%; max-height: 100%;">
+                                            <button type="button" class="btn btn-sm btn-danger remove-image mt-1">
+                                                <i class="fas fa-trash"></i> Видалити
+                                            </button>
+                                        </div>
+                                        <div style="display: none;">
+                                            {{ img_form.image }}
+                                            {{ img_form.id }}
+                                            {{ img_form.DELETE }}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    {% endfor %}
+                                </div>
+                                
+                                <button type="button" id="add-image" class="btn btn-outline-primary mt-3">
+                                    <i class="fas fa-plus"></i> Додати зображення
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Кнопки -->
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{% url 'product_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-1"></i> Повернутися до списку
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save me-1"></i> Зберегти варіацію товару
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Підказки -->
+        <div class="card shadow-sm border mb-4">
+            <div class="card-header bg-white">
+                <h5 class="card-title mb-0">Підказки</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <h6><i class="fas fa-info-circle me-1 text-primary"></i> Про товари</h6>
+                    <p class="small text-muted">Заповніть усі поля, щоб додати новий товар до бази даних. Обов'язкові поля позначені зірочкою (*).</p>
+                </div>
+                <div class="mb-3">
+                    <h6><i class="fas fa-tag me-1 text-primary"></i> Культура</h6>
+                    <p class="small text-muted">Культури допомагають організувати товари та полегшують пошук.</p>
+                </div>
+                <div>
+                    <h6><i class="fas fa-image me-1 text-primary"></i> Зображення</h6>
+                    <p class="small text-muted">Додайте якісне зображення товару для кращої презентації.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const addImageBtn = document.getElementById('add-image');
+        const imageContainer = document.getElementById('image-container');
+        
+        // Отримуємо поля управління формсетом
+        const totalFormsInput = document.querySelector('[name="images-TOTAL_FORMS"]');
+        const initialFormsInput = document.querySelector('[name="images-INITIAL_FORMS"]');
+        const maxFormsInput = document.querySelector('[name="images-MAX_NUM_FORMS"]');
+        
+        if (!totalFormsInput || !initialFormsInput || !maxFormsInput) {
+            console.error('Не знайдено поля управління формсетом');
+            return;
+        }
+        
+        // Оновлюємо лічильник форм на основі фактичної кількості елементів
+        const updateFormCount = function() {
+            const formCount = imageContainer.querySelectorAll('.image-item').length;
+            totalFormsInput.value = formCount;
+            console.log('Оновлено лічильник форм:', formCount);
+        };
+        
+        // Викликаємо оновлення лічильника при завантаженні сторінки
+        updateFormCount();
+        
+        // Додавання нового поля для зображення
+        addImageBtn.addEventListener('click', function() {
+            const formCount = parseInt(totalFormsInput.value);
+            const maxForms = parseInt(maxFormsInput.value || 10);
+            
+            if (formCount >= maxForms) {
+                alert('Досягнуто максимальної кількості зображень');
+                return;
+            }
+            
+            // Створюємо файловий інпут для вибору зображення
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = 'image/*';
+            fileInput.style.display = 'none';
+            document.body.appendChild(fileInput);
+            
+            // Відкриваємо діалог вибору файлу
+            fileInput.click();
+            
+            // Обробляємо вибір файлу
+            fileInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    // Створюємо новий контейнер для зображення
+                    const newFormContainer = document.createElement('div');
+                    newFormContainer.className = 'col-md-3 mb-3 image-item';
+                    newFormContainer.dataset.index = formCount;
+                    
+                    // Створюємо контейнер для зображення
+                    const imageForm = document.createElement('div');
+                    imageForm.className = 'image-form';
+                    imageForm.style.width = '150px';
+                    imageForm.style.height = '150px';
+                    imageForm.style.display = 'block';
+                    
+                    // Додаємо зображення з попереднім переглядом
+                    const img = document.createElement('img');
+                    img.alt = 'Попередній перегляд';
+                    img.className = 'img-thumbnail';
+                    img.style.maxWidth = '100%';
+                    img.style.maxHeight = '100%';
+                    
+                    // Читаємо файл для попереднього перегляду
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        img.src = e.target.result;
+                    };
+                    reader.readAsDataURL(this.files[0]);
+                    
+                    imageForm.appendChild(img);
+                    
+                    // Додаємо кнопку видалення
+                    const removeBtn = document.createElement('button');
+                    removeBtn.type = 'button';
+                    removeBtn.className = 'btn btn-sm btn-danger remove-image mt-1';
+                    removeBtn.innerHTML = '<i class="fas fa-trash"></i> Видалити';
+                    imageForm.appendChild(removeBtn);
+                    
+                    // Створюємо приховані поля форми
+                    const hiddenFields = document.createElement('div');
+                    hiddenFields.style.display = 'none';
+                    
+                    // Створюємо поле для завантаження файлу
+                    const formFileInput = document.createElement('input');
+                    formFileInput.type = 'file';
+                    formFileInput.name = `images-${formCount}-image`;
+                    formFileInput.id = `id_images-${formCount}-image`;
+                    formFileInput.accept = 'image/*';
+                    
+                    // Копіюємо вибраний файл у поле форми
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(this.files[0]);
+                    formFileInput.files = dataTransfer.files;
+                    
+                    hiddenFields.appendChild(formFileInput);
+                    
+                    // Додаємо приховане поле id
+                    const idInput = document.createElement('input');
+                    idInput.type = 'hidden';
+                    idInput.name = `images-${formCount}-id`;
+                    idInput.id = `id_images-${formCount}-id`;
+                    hiddenFields.appendChild(idInput);
+                    
+                    // Додаємо приховане поле DELETE
+                    const deleteInput = document.createElement('input');
+                    deleteInput.type = 'checkbox';
+                    deleteInput.name = `images-${formCount}-DELETE`;
+                    deleteInput.id = `id_images-${formCount}-DELETE`;
+                    deleteInput.style.display = 'none';
+                    hiddenFields.appendChild(deleteInput);
+                    
+                    // Додаємо всі елементи до контейнера
+                    newFormContainer.appendChild(imageForm);
+                    newFormContainer.appendChild(hiddenFields);
+                    
+                    // Додаємо новий контейнер до формсету
+                    imageContainer.appendChild(newFormContainer);
+                    
+                    // Оновлюємо лічильник форм
+                    updateFormCount();
+                    
+                    // Видаляємо тимчасовий файловий інпут
+                    document.body.removeChild(fileInput);
+                }
+            });
+        });
+        
+        // Видалення поля для зображення
+        imageContainer.addEventListener('click', function(e) {
+            if (e.target.classList.contains('remove-image') || e.target.closest('.remove-image')) {
+                const buttonElement = e.target.classList.contains('remove-image') ? e.target : e.target.closest('.remove-image');
+                const imageFormContainer = buttonElement.closest('.image-item');
+                const deleteField = imageFormContainer.querySelector('input[name$="-DELETE"]');
+                const idField = imageFormContainer.querySelector('input[name$="-id"]');
+                
+                if (idField && idField.value) {
+                    // Якщо це існуюче зображення, позначаємо його для видалення
+                    deleteField.checked = true;
+                    imageFormContainer.style.display = 'none';
+                    console.log('Зображення позначено для видалення:', deleteField.name);
+                } else {
+                    // Якщо це нове зображення, просто видаляємо форму
+                    imageFormContainer.remove();
+                    updateFormCount();
+                    console.log('Нове зображення видалено');
+                }
+            }
+        });
+    });
+</script>
+{% endblock %} 

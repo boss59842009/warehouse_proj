@@ -9,60 +9,33 @@
     <!-- Product Images -->
     <div class="col-md-5 mb-4">
         <div class="card">
-            <div class="card-body p-0">
-                <div id="productCarousel" class="carousel slide" data-bs-ride="carousel">
-                    <div class="carousel-inner">
-                        {% if product.image %}
-                        <div class="carousel-item active">
-                            <img src="{{ product.image.url }}" class="d-block w-100 rounded" style="height: 400px; object-fit: contain;" alt="{{ product.name }}">
-                        </div>
-                        {% endif %}
-                        
-                        {% for image in product.images.all %}
-                        <div class="carousel-item {% if not product.image and forloop.first %}active{% endif %}">
-                            <img src="{{ image.image.url }}" class="d-block w-100 rounded" style="height: 400px; object-fit: contain;" alt="{{ product.name }}">
-                        </div>
-                        {% empty %}
-                        {% if not product.image %}
-                        <div class="carousel-item active">
-                            <img src="/static/img/no-image.png" class="d-block w-100 rounded" style="height: 400px; object-fit: contain;" alt="No Image">
-                        </div>
-                        {% endif %}
-                        {% endfor %}
+            <div id="productCarousel" class="carousel slide" data-bs-ride="carousel">
+                <div class="carousel-inner">
+                    {% with images=product.productimage_set.all %}
+                    {% for image in images %}
+                    <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                        <img src="{{ image.image.url }}" class="d-block w-100 rounded" style="height: 400px; object-fit: contain;" alt="{{ product.name }}">
                     </div>
-                    
-                    {% if product.image or product.images.all %}
-                    <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel" data-bs-slide="prev">
-                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                        <span class="visually-hidden">Попередній</span>
-                    </button>
-                    <button class="carousel-control-next" type="button" data-bs-target="#productCarousel" data-bs-slide="next">
-                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                        <span class="visually-hidden">Наступний</span>
-                    </button>
-                    {% endif %}
-                </div>
-                
-                <!-- Thumbnail navigation if there are multiple images -->
-                {% if product.images.all %}
-                <div class="row mt-3 px-3">
-                    {% if product.image %}
-                    <div class="col-3 mb-3">
-                        <img src="{{ product.image.url }}" class="img-thumbnail cursor-pointer" 
-                            onclick="$('#productCarousel').carousel(0)" alt="{{ product.name }}" 
-                            style="height: 80px; object-fit: cover; cursor: pointer;">
-                    </div>
-                    {% endif %}
-                    
-                    {% for image in product.images.all %}
-                    <div class="col-3 mb-3">
-                        <img src="{{ image.image.url }}" class="img-thumbnail cursor-pointer" 
-                            onclick="$('#productCarousel').carousel({{ forloop.counter }}{% if product.image %}{% else %}0{% endif %})" 
-                            alt="{{ product.name }}" style="height: 80px; object-fit: cover; cursor: pointer;">
+                    {% empty %}
+                    <div class="carousel-item active">
+                        <img src="/static/img/no-image.png" class="d-block w-100 rounded" style="height: 400px; object-fit: contain;" alt="No Image">
                     </div>
                     {% endfor %}
+                    {% endwith %}
                 </div>
+                
+                {% with image_count=product.productimage_set.count %}
+                {% if image_count > 1 %}
+                <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel" data-bs-slide="prev">
+                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                    <span class="visually-hidden">Попередній</span>
+                </button>
+                <button class="carousel-control-next" type="button" data-bs-target="#productCarousel" data-bs-slide="next">
+                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                    <span class="visually-hidden">Наступний</span>
+                </button>
                 {% endif %}
+                {% endwith %}
             </div>
         </div>
     </div>
@@ -76,13 +49,13 @@
                     <a href="{% url 'product_update' product.id %}" class="btn btn-sm btn-primary">
                         <i class="fas fa-edit me-1"></i> Редагувати
                     </a>
-                    <a href="{% url 'product_delete' product.id %}" class="btn btn-sm btn-danger">
+                    <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteProductModal">
                         <i class="fas fa-trash-alt me-1"></i> Видалити
-                    </a>
+                    </button>
                 </div>
             </div>
             <div class="card-body">
-                <h3 class="mb-3">{{ product.name }}</h3>
+                <h3 class="mb-3">{{ product.real_name }}</h3>
                 <div class="mb-4">
                     {% if product.is_available %}
                     <span class="badge bg-success me-2">В наявності</span>
@@ -100,13 +73,17 @@
                             <td>{{ product.real_name }}</td>
                         </tr>
                         <tr>
-                            <th>Категорія:</th>
-                            <td>{{ product.category.name }}</td>
+                            <th>Назва:</th>
+                            <td>{{ product.name }}</td>
                         </tr>
                         {% if product.culture %}
                         <tr>
                             <th>Культура:</th>
                             <td>{{ product.culture.name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Код:</th>
+                            <td>{{ product.code }}</td>
                         </tr>
                         {% endif %}
                         <tr>
@@ -152,81 +129,197 @@
                     <p>{{ product.description|linebreaks }}</p>
                 </div>
                 {% endif %}
-                
-                {% if product.is_available and product.quantity > 0 %}
-                <div class="mt-4">
-                    <h5>Додати до кошика:</h5>
-                    <form method="post" action="{% url 'add_to_cart' product.id %}" class="row g-3">
-                        {% csrf_token %}
-                        <div class="col-md-4">
-                            <label for="quantity" class="form-label">Кількість:</label>
-                            <input type="number" class="form-control" id="quantity" name="quantity" value="1" min="1" max="{{ product.quantity }}">
-                        </div>
-                        <div class="col-md-8 d-flex align-items-end">
-                            <button type="submit" class="btn btn-success me-2">
-                                <i class="fas fa-cart-plus me-1"></i> Додати до кошика
-                            </button>
-                            <button type="submit" name="checkout" value="1" class="btn btn-primary">
-                                <i class="fas fa-shopping-cart me-1"></i> Купити зараз
-                            </button>
-                        </div>
-                    </form>
-                </div>
-                {% endif %}
             </div>
         </div>
     </div>
 </div>
 
-<!-- Related Products -->
-{% if related_products %}
-<div class="row mt-3">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Схожі товари</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    {% for related in related_products %}
-                    <div class="col-md-3 mb-3">
-                        <div class="card h-100 product-card">
-                            {% if related.image %}
-                            <img src="{{ related.image.url }}" class="card-img-top" style="height: 150px; object-fit: cover;" alt="{{ related.name }}">
+<div class="row mb-3">
+    <div class="col-md-6">
+        <h4>Варіації товару</h4>
+    </div>
+    <div class="col-md-6 text-end">
+        <a href="{% url 'variation_product_create' product.id %}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i> Додати варіацію товару
+        </a>
+    </div>
+</div>
+<!-- Список варіацій товару -->
+<div class="card shadow-sm border">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th scope="col" style="width: 100px;">Фото</th>
+                        <th scope="col" style="width: 200px;">Назва справжня</th>
+                        <th scope="col"style="width: 150px;">Назва</th>
+                        <th scope="col" style="width: 150px;">Культура</th>
+                        <th scope="col" style="width: 150px;">Тип упаковки</th>
+                        <th scope="col" style="width: 150px;">Кількість</th>
+                        <th scope="col" style="width: 150px;">Кількість упаковок</th>
+                        <th scope="col" style="width: 150px;">Ціна</th>
+                        <th scope="col" style="width: 100px;">Дії</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for variation in variations %}
+                    <tr>
+                        <td>
+                            {% if variation.productvariationimage_set.exists %}
+                                <img src="{{ variation.productvariationimage_set.first.image.url }}" alt="{{ variation.name }}" class="img-thumbnail" style="max-height: 80px;">
                             {% else %}
-                            <img src="/static/img/no-image.png" class="card-img-top" style="height: 150px; object-fit: cover;" alt="No Image">
+                                <div class="text-center text-muted"><i class="fas fa-image fa-2x"></i></div>
                             {% endif %}
-                            <div class="card-body">
-                                <h6 class="card-title">{{ related.name }}</h6>
-                                <p class="card-text mb-0">
-                                    <small>{{ related.quantity }} {% if related.measurement_unit %}{{ related.measurement_unit.name }}{% endif %}</small>
-                                </p>
-                                <p class="text-primary">{{ related.price }} грн</p>
+                        </td>
+                        <td>{{ variation.real_name }}</td>
+                        <td>{{ variation.name }}</td>
+                        <td>{{ variation.culture.name }}</td>
+                        <td>{{ variation.package_type.name }}</td>
+                        <td>{{ variation.quantity }}</td>
+                        <td>{{ variation.packages_count }}</td>
+                        <td>{{ variation.price|floatformat:2 }} грн.</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'variation_product_detail' variation.id %}" class="btn btn-outline-primary" title="Переглянути">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'variation_product_update' variation.id %}" class="btn btn-outline-secondary" title="Редагувати">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteProductModal{{ variation.id }}" title="Видалити">
+                                    <i class="fas fa-trash"></i>
+                                </button>
                             </div>
-                            <div class="card-footer bg-transparent border-top-0 pb-3">
-                                <a href="{% url 'product_detail' related.id %}" class="btn btn-sm btn-outline-primary w-100">Деталі</a>
+                            
+                            <!-- Delete Product Modal -->
+                            <div class="modal fade" id="deleteProductModal{{ variation.id }}" tabindex="-1" aria-labelledby="deleteProductModalLabel{{ variation.id }}" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title" id="deleteProductModalLabel{{ variation.id }}">Підтвердження видалення</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрити"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <p>Ви впевнені, що хочете видалити варіацію товару "{{ variation.real_name }}"?</p>
+                                            <p class="text-danger"><strong>Увага:</strong> Ця дія не може бути скасована.</p>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                                            <form method="post" action="{% url 'variation_product_delete' variation.id %}">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-danger">Видалити</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center py-4">
+                            <div class="d-flex flex-column align-items-center py-3">
+                                <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">Варіації товару не знайдено</h5>
+                                <p class="text-muted mb-3">Спробуйте змінити параметри пошуку або створіть нову варіацію товару</p>
+                                <a href="{% url 'variation_product_create' product.id %}" class="btn btn-primary">
+                                    <i class="fas fa-plus me-1"></i> Додати варіацію товару
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
                     {% endfor %}
-                </div>
-            </div>
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
-{% endif %}
 
-<!-- Product Movement Link -->
-<div class="row mt-3">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                <a href="{% url 'product_movements' product.id %}" class="btn btn-info text-white">
-                    <i class="fas fa-exchange-alt me-1"></i> Переглянути історію руху товару
-                </a>
-                <a href="{% url 'product_inventory' product.id %}" class="btn btn-warning ms-2">
-                    <i class="fas fa-clipboard-list me-1"></i> Інвентаризація товару
-                </a>
+<!-- Пагінація -->
+{% if is_paginated %}
+<nav aria-label="Page navigation" class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="First">
+                <span aria-hidden="true">&laquo;&laquo;</span>
+            </a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Previous">
+                <span aria-hidden="true">&laquo;</span>
+            </a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <a class="page-link" href="#" aria-label="First">
+                <span aria-hidden="true">&laquo;&laquo;</span>
+            </a>
+        </li>
+        <li class="page-item disabled">
+            <a class="page-link" href="#" aria-label="Previous">
+                <span aria-hidden="true">&laquo;</span>
+            </a>
+        </li>
+        {% endif %}
+
+        {% for num in page_obj.paginator.page_range %}
+        {% if page_obj.number == num %}
+        <li class="page-item active">
+            <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+        </li>
+        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+        </li>
+        {% endif %}
+        {% endfor %}
+
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Next">
+                <span aria-hidden="true">&raquo;</span>
+            </a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Last">
+                <span aria-hidden="true">&raquo;&raquo;</span>
+            </a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <a class="page-link" href="#" aria-label="Next">
+                <span aria-hidden="true">&raquo;</span>
+            </a>
+        </li>
+        <li class="page-item disabled">
+            <a class="page-link" href="#" aria-label="Last">
+                <span aria-hidden="true">&raquo;&raquo;</span>
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+<!-- Delete Product Modal -->
+<div class="modal fade" id="deleteProductModal" tabindex="-1" aria-labelledby="deleteProductModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteProductModalLabel">Підтвердження видалення</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрити"></button>
+            </div>
+            <div class="modal-body">
+                <p>Ви впевнені, що хочете видалити товар "{{ product.real_name }}"?</p>
+                <p class="text-danger"><strong>Увага:</strong> Ця дія не може бути скасована.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <form method="post" action="{% url 'product_delete' product.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Видалити</button>
+                </form>
             </div>
         </div>
     </div>

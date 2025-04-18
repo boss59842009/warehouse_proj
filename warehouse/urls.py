@@ -15,20 +15,26 @@ urlpatterns = [
     path('products/<int:pk>/delete/', views.product_delete, name='product_delete'),
     path('categories/<int:category_id>/products/', views.category_products, name='category_products'),
     path('cultures/<int:culture_id>/products/', views.culture_products, name='culture_products'),
+
+    # Variations Product URLs
+    path('variations/new/<int:product_id>/', views.variation_product_create, name='variation_product_create'),
+    path('variations/<int:pk>/', views.variation_product_detail, name='variation_product_detail'),
+    path('variations/<int:pk>/edit/', views.variation_product_update, name='variation_product_update'),
+    path('variations/<int:pk>/delete/', views.variation_product_delete, name='variation_product_delete'),
     
     # Order URLs
     path('orders/', views.order_list, name='order_list'),
     path('orders/<int:pk>/', views.order_detail, name='order_detail'),
     path('orders/new/', views.order_create, name='order_create'),
-    path('orders/<int:pk>/edit/', views.order_update, name='order_update'),
+    path('order/new/confirm/', views.order_confirm, name='order_confirm'),
+    path('order/complete/', views.order_complete, name='order_complete'),
     path('orders/<int:pk>/cancel/', views.order_cancel, name='order_cancel'),
-    
     # Cart URLs
-    path('cart/', views.view_cart, name='view_cart'),
-    path('cart/add/<int:product_id>/', views.add_to_cart, name='add_to_cart'),
-    path('cart/update/', views.update_cart, name='update_cart'),
-    path('cart/clear/', views.clear_cart, name='clear_cart'),
-    path('checkout/', views.checkout, name='checkout'),
+    # path('cart/', views.view_cart, name='view_cart'),
+    # path('cart/add/<int:product_id>/', views.add_to_cart, name='add_to_cart'),
+    # path('cart/update/', views.update_cart, name='update_cart'),
+    # path('cart/clear/', views.clear_cart, name='clear_cart'),
+    # path('checkout/', views.checkout, name='checkout'),
     
     # Inventory URLs
     path('inventory/', views.inventory_list, name='inventory_list'),

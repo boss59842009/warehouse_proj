@@ -1,0 +1,201 @@
+{% extends 'warehouse/base.html' %}
+
+{% block title %}{{ variation_product.name }} | Складський облік{% endblock %}
+
+{% block header %}Деталі варіації товару{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Product Images -->
+    <div class="col-md-5 mb-4">
+        <div class="card">
+            <div id="productCarousel" class="carousel slide" data-bs-ride="carousel">
+                <div class="carousel-inner">
+                    {% with images=variation_product.productvariationimage_set.all %}
+                    {% for image in images %}
+                    <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                        <img src="{{ image.image.url }}" class="d-block w-100 rounded" style="height: 400px; object-fit: contain;" alt="{{ variation_product.name }}">
+                    </div>
+                    {% empty %}
+                    <div class="carousel-item active">
+                        <img src="/static/img/no-image.png" class="d-block w-100 rounded" style="height: 400px; object-fit: contain;" alt="No Image">
+                    </div>
+                    {% endfor %}
+                    {% endwith %}
+                </div>
+                
+                {% with image_count=variation_product.productvariationimage_set.count %}
+                {% if image_count > 1 %}
+                <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel" data-bs-slide="prev">
+                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                    <span class="visually-hidden">Попередній</span>
+                </button>
+                <button class="carousel-control-next" type="button" data-bs-target="#productCarousel" data-bs-slide="next">
+                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                    <span class="visually-hidden">Наступний</span>
+                </button>
+                {% endif %}
+                {% endwith %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Product Information -->
+    <div class="col-md-7 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Інформація про варіацію товару</h5>
+                <div>
+                    <a href="{% url 'variation_product_update' variation_product.id %}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-edit me-1"></i> Редагувати
+                    </a>
+                    <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteProductModal">
+                        <i class="fas fa-trash-alt me-1"></i> Видалити
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <h3 class="mb-3">{{ variation_product.real_name }}</h3>
+                <div class="mb-4">
+                    {% if variation_product.is_available %}
+                    <span class="badge bg-success me-2">В наявності</span>
+                    {% else %}
+                    <span class="badge bg-danger me-2">Немає в наявності</span>
+                    {% endif %}
+                    
+                    <span class="badge bg-primary">Ціна: {{ variation_product.price }} грн</span>
+                </div>
+                
+                <table class="table table-striped">
+                    <tbody>
+                        <tr>
+                            <th>Назва:</th>
+                            <td>{{ variation_product.name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Справжня назва:</th>
+                            <td>{{ variation_product.real_name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Основний товар:</th>
+                            <td><a href="{% url 'product_detail' variation_product.parent_product.id %}">{{ variation_product.parent_product.name }}</a></td>
+                        </tr>
+                        <tr>
+                            <th>Культура:</th>
+                            <td>{{ variation_product.culture.name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Артикул:</th>
+                            <td>{{ variation_product.sku }}</td>
+                        </tr>
+                        <tr>
+                            <th>Кількість:</th>
+                            <td>{{ variation_product.quantity }} {% if variation_product.measurement_unit %}{{ variation_product.measurement_unit.name }}{% endif %}</td>
+                        </tr>
+                        <tr>
+                            <th>Кількість упаковок:</th>
+                            <td>{{ variation_product.packages_count }}</td>
+                        </tr>
+                        {% if variation_product.package_type %}
+                        <tr>
+                            <th>Тип упаковки:</th>
+                            <td>{{ variation_product.package_type.name }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <th>Номер лоту:</th>
+                            <td>{{ variation_product.lot_number }}</td>
+                        </tr>
+                        <tr>
+                            <th>Назва імпорту:</th>
+                            <td>{{ variation_product.import_name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Створено:</th>
+                            <td>{{ variation_product.created_at|date:"d.m.Y H:i" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Останнє оновлення:</th>
+                            <td>{{ variation_product.updated_at|date:"d.m.Y H:i" }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                {% if variation_product.description %}
+                <div class="mt-4">
+                    <h5>Опис варіації товару:</h5>
+                    <p>{{ variation_product.description|linebreaks }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Related Products -->
+{% if related_products %}
+<div class="row mt-4">
+    <div class="col-12">
+        <h4>Схожі варіації товарів</h4>
+        <div class="row">
+            {% for related in related_products %}
+            <div class="col-md-3 mb-4">
+                <div class="card h-100">
+                    <div class="card-img-top text-center pt-3">
+                        {% with first_image=related.productvariationimage_set.first %}
+                        {% if first_image %}
+                        <img src="{{ first_image.image.url }}" alt="{{ related.name }}" style="height: 150px; object-fit: contain;">
+                        {% else %}
+                        <img src="/static/img/no-image.png" alt="No Image" style="height: 150px; object-fit: contain;">
+                        {% endif %}
+                        {% endwith %}
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title">{{ related.name }}</h5>
+                        <p class="card-text">Ціна: {{ related.price }} грн</p>
+                        <a href="{% url 'variation_product_detail' related.id %}" class="btn btn-primary">Детальніше</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Product Movement Link -->
+<div class="row mt-3">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <a href="{% url 'product_detail' variation_product.parent_product.id %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-1"></i> Повернутися до батьківського товару
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Product Modal -->
+<div class="modal fade" id="deleteProductModal" tabindex="-1" aria-labelledby="deleteProductModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteProductModalLabel">Підтвердження видалення</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрити"></button>
+            </div>
+            <div class="modal-body">
+                <p>Ви впевнені, що хочете видалити варіацію товару "{{ variation_product.name }}"?</p>
+                <p class="text-danger"><strong>Увага:</strong> Ця дія не може бути скасована.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <form method="post" action="{% url 'variation_product_delete' variation_product.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Видалити</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -19,12 +19,9 @@
                 <h5 class="card-title mb-0">Інформація про замовлення</h5>
                 <div>
                     <span class="badge 
-                        {% if order.status == 'new' %}bg-primary
-                        {% elif order.status == 'processing' %}bg-info text-dark
-                        {% elif order.status == 'shipped' %}bg-warning text-dark
-                        {% elif order.status == 'delivered' %}bg-success
+                        {% if order.status == 'accepted' %}bg-primary
+                        {% elif order.status == 'successful' %}bg-info text-dark
                         {% elif order.status == 'canceled' %}bg-danger
-                        {% elif order.status == 'returned' %}bg-secondary
                         {% else %}bg-secondary{% endif %}">
                         {{ order.get_status_display }}
                     </span>
@@ -42,19 +39,19 @@
                     </div>
                     <div class="col-md-6 mb-3">
                         <h6 class="text-muted mb-1">Клієнт</h6>
-                        <p class="mb-0">{{ order.customer_name }}</p>
+                        <p class="mb-0">{{ order.user.first_name }} {{ order.user.last_name }}</p>
                     </div>
                     <div class="col-md-6 mb-3">
                         <h6 class="text-muted mb-1">Телефон</h6>
-                        <p class="mb-0">{{ order.phone_number }}</p>
+                        <p class="mb-0">{{ order.user.phone_number }}</p>
                     </div>
                     <div class="col-md-6 mb-3">
                         <h6 class="text-muted mb-1">Email</h6>
-                        <p class="mb-0">{% if order.email %}{{ order.email }}{% else %}<span class="text-muted">Не вказано</span>{% endif %}</p>
+                        <p class="mb-0">{% if order.user.email %}{{ order.user.email }}{% else %}<span class="text-muted">Не вказано</span>{% endif %}</p>
                     </div>
                     <div class="col-md-6 mb-3">
-                        <h6 class="text-muted mb-1">Адреса доставки</h6>
-                        <p class="mb-0">{% if order.delivery_address %}{{ order.delivery_address }}{% else %}<span class="text-muted">Не вказано</span>{% endif %}</p>
+                        <h6 class="text-muted mb-1">Коментар</h6>
+                        <p class="mb-0">{% if order.comment %}{{ order.comment }}{% else %}<span class="text-muted">Не вказано</span>{% endif %}</p>
                     </div>
                     {% if order.notes %}
                     <div class="col-12">
@@ -86,7 +83,7 @@
                             {% for item in order.items.all %}
                             <tr>
                                 <td>
-                                    <div>{{ item.product.name }}</div>
+                                    <div>{{ item.product.real_name }}</div>
                                     <small class="text-muted">{{ item.product.code }}</small>
                                 </td>
                                 <td>{{ item.quantity }} {{ item.product.measurement_unit.name }}</td>
@@ -116,85 +113,25 @@
     <!-- Бокова панель -->
     <div class="col-md-4">
         <!-- Панель дій -->
+        {% if order.status == 'accepted' or order.status == 'successful' %}
         <div class="card shadow-sm border mb-4">
             <div class="card-header bg-white">
                 <h5 class="card-title mb-0">Дії</h5>
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="{% url 'order_edit' order.id %}" class="btn btn-primary">
-                        <i class="fas fa-edit me-1"></i> Редагувати замовлення
-                    </a>
-                    
-                    {% if order.status == 'new' %}
-                    <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#changeStatusModal" data-status="processing">
-                        <i class="fas fa-hourglass-start me-1"></i> Почати обробку
-                    </button>
-                    {% elif order.status == 'processing' %}
-                    <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#changeStatusModal" data-status="shipped">
-                        <i class="fas fa-shipping-fast me-1"></i> Відправити замовлення
-                    </button>
-                    {% elif order.status == 'shipped' %}
-                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#changeStatusModal" data-status="delivered">
-                        <i class="fas fa-check-circle me-1"></i> Підтвердити доставку
-                    </button>
-                    {% endif %}
-                    
-                    {% if order.status != 'canceled' and order.status != 'returned' %}
                     <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#changeStatusModal" data-status="canceled">
                         <i class="fas fa-ban me-1"></i> Скасувати замовлення
-                    </button>
-                    {% endif %}
-                    
-                    {% if order.status == 'delivered' %}
-                    <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#changeStatusModal" data-status="returned">
-                        <i class="fas fa-undo me-1"></i> Оформити повернення
-                    </button>
-                    {% endif %}
+                    </button>                    
                 </div>
             </div>
         </div>
-
-        <!-- Історія змін статусу -->
-        <div class="card shadow-sm border mb-4">
-            <div class="card-header bg-white">
-                <h5 class="card-title mb-0">Історія змін статусу</h5>
-            </div>
-            <div class="card-body p-0">
-                <ul class="list-group list-group-flush">
-                    {% for history in order_history %}
-                    <li class="list-group-item">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <span class="badge 
-                                    {% if history.new_status == 'new' %}bg-primary
-                                    {% elif history.new_status == 'processing' %}bg-info text-dark
-                                    {% elif history.new_status == 'shipped' %}bg-warning text-dark
-                                    {% elif history.new_status == 'delivered' %}bg-success
-                                    {% elif history.new_status == 'canceled' %}bg-danger
-                                    {% elif history.new_status == 'returned' %}bg-secondary
-                                    {% else %}bg-secondary{% endif %}">
-                                    {{ history.get_new_status_display }}
-                                </span>
-                                {% if history.comment %}
-                                <p class="small text-muted mt-1 mb-0">{{ history.comment }}</p>
-                                {% endif %}
-                            </div>
-                            <small class="text-muted">{{ history.created_at|date:"d.m.Y H:i" }}</small>
-                        </div>
-                    </li>
-                    {% empty %}
-                    <li class="list-group-item text-center py-3 text-muted">
-                        <i class="fas fa-history me-2"></i> Історія відсутня
-                    </li>
-                    {% endfor %}
-                </ul>
-            </div>
-        </div>
+        {% endif %}
     </div>
 </div>
 
-<!-- Модальне вікно зміни статусу -->
+
+{% comment %} <!-- Модальне вікно зміни статусу -->
 <div class="modal fade" id="changeStatusModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -218,7 +155,7 @@
             </form>
         </div>
     </div>
-</div>
+</div> {% endcomment %}
 
 {% block extra_scripts %}
 <script>

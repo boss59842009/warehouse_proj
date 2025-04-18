@@ -8,8 +8,8 @@ import os
 import zipfile
 import shutil
 import sqlite3
-from ..models import BackupSettings, SystemParameter, Category, PackageType, MeasurementUnit, Culture
-from ..forms import BackupSettingsForm, SystemParameterForm, CategoryForm, PackageTypeForm, MeasurementUnitForm, CultureForm
+from ..models import BackupSettings, SystemParameter, Culture, PackageType, MeasurementUnit
+from ..forms import BackupSettingsForm, SystemParameterForm, CultureForm, PackageTypeForm, MeasurementUnitForm
 
 def is_admin(user):
     """Check if the user is an admin or superuser."""
@@ -31,7 +31,6 @@ def settings_index(request):
     system_parameters = SystemParameter.objects.all()
     
     # Get reference data counts
-    categories_count = Category.objects.count()
     package_types_count = PackageType.objects.count()
     measurement_units_count = MeasurementUnit.objects.count()
     cultures_count = Culture.objects.count()
@@ -39,7 +38,6 @@ def settings_index(request):
     context = {
         'backup_settings': backup_settings,
         'system_parameters': system_parameters,
-        'categories_count': categories_count,
         'package_types_count': package_types_count,
         'measurement_units_count': measurement_units_count,
         'cultures_count': cultures_count,
@@ -255,17 +253,17 @@ def delete_system_parameter(request, pk):
 @user_passes_test(is_admin)
 def manage_categories(request):
     """View to manage product categories."""
-    categories = Category.objects.all().order_by('name')
+    categories = Culture.objects.all().order_by('name')
     
     if request.method == 'POST':
-        form = CategoryForm(request.POST)
+        form = CultureForm(request.POST)
         
         if form.is_valid():
             form.save()
             messages.success(request, f'Категорію "{form.cleaned_data["name"]}" успішно додано.')
             return redirect('manage_categories')
     else:
-        form = CategoryForm()
+        form = CultureForm()
     
     context = {
         'categories': categories,
@@ -278,17 +276,17 @@ def manage_categories(request):
 @user_passes_test(is_admin)
 def edit_category(request, pk):
     """View to edit a product category."""
-    category = get_object_or_404(Category, pk=pk)
+    category = get_object_or_404(Culture, pk=pk)
     
     if request.method == 'POST':
-        form = CategoryForm(request.POST, instance=category)
+        form = CultureForm(request.POST, instance=category)
         
         if form.is_valid():
             form.save()
             messages.success(request, f'Категорію "{category.name}" успішно оновлено.')
             return redirect('manage_categories')
     else:
-        form = CategoryForm(instance=category)
+        form = CultureForm(instance=category)
     
     context = {
         'form': form,
@@ -301,7 +299,7 @@ def edit_category(request, pk):
 @user_passes_test(is_admin)
 def delete_category(request, pk):
     """View to delete a product category."""
-    category = get_object_or_404(Category, pk=pk)
+    category = get_object_or_404(Culture, pk=pk)
     
     if request.method == 'POST':
         try:

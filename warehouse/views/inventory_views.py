@@ -11,7 +11,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
 from datetime import datetime
-from ..models import Product, Category, Inventory
+from ..models import Product, Culture, Inventory
 from ..forms import InventoryForm, ReportForm
 
 @login_required
@@ -288,9 +288,9 @@ def bulk_inventory(request):
     category_id = request.GET.get('category', '')
     if category_id:
         try:
-            category = Category.objects.get(pk=int(category_id))
+            category = Culture.objects.get(pk=int(category_id))
             products = products.filter(category=category)
-        except (Category.DoesNotExist, ValueError):
+        except (Culture.DoesNotExist, ValueError):
             pass
     
     if request.method == 'POST':
@@ -331,7 +331,7 @@ def bulk_inventory(request):
         return redirect('inventory_list')
     
     # Get categories for filter
-    categories = Category.objects.all()
+    categories = Culture.objects.all()
     
     # Paginate results for display
     paginator = Paginator(products, 20)  # Show 20 products per page

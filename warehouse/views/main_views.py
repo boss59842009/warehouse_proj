@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.db.models import Sum, Count, F, Q
-from ..models import Product, Order, Inventory, ProductMovement, Category
+from ..models import Product, Order, Inventory, ProductMovement
 
 @login_required
 def home(request):
@@ -17,8 +17,8 @@ def home(request):
     
     # Get top 5 products by order count
     top_products = Product.objects.annotate(
-        order_count=Count('orderitem')
-    ).order_by('-order_count')[:5]
+        total_ordered=Sum('variations__orderitem__quantity', distinct=True)
+    ).order_by('-total_ordered')[:5]
     
     context = {
         'total_products': total_products,
@@ -62,12 +62,7 @@ def dashboard(request):
     
     # Get recent movements
     recent_movements = ProductMovement.objects.all().order_by('-date')[:5]
-    
-    # Get product categories distribution
-    categories = Category.objects.annotate(
-        product_count=Count('product')
-    ).order_by('-product_count')[:5]
-    
+
     # Get top products by quantity
     top_products = Product.objects.order_by('-quantity')[:5]
     

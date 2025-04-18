@@ -1,16 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
-
-class Category(models.Model):
-    name = models.CharField(max_length=100, verbose_name="Назва категорії")
     
-    def __str__(self):
-        return self.name
-    
-    class Meta:
-        verbose_name = "Категорія"
-        verbose_name_plural = "Категорії"
 
 class PackageType(models.Model):
     name = models.CharField(max_length=100, verbose_name="Тип упаковки")
@@ -42,56 +33,84 @@ class Culture(models.Model):
         verbose_name = "Культура"
         verbose_name_plural = "Культури"
 
-class Product(models.Model):
-    name = models.CharField(max_length=200, verbose_name="Назва продукту")
+class BaseProduct(models.Model):
+    name = models.CharField(max_length=200, verbose_name="Назва продукту", unique=True, null=True, blank=True)
     real_name = models.CharField(max_length=200, verbose_name="Назва справжня")
     culture = models.ForeignKey(Culture, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Культура")
-    category = models.ForeignKey(Category, on_delete=models.CASCADE, verbose_name="Категорія")
     package_type = models.ForeignKey(PackageType, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Тип упаковки")
     measurement_unit = models.ForeignKey(MeasurementUnit, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Одиниця виміру")
     lot_number = models.CharField(max_length=100, verbose_name="Номер лоту", blank=True, null=True)
     import_name = models.CharField(max_length=200, verbose_name="Імпорт назва", blank=True, null=True)
-    quantity = models.PositiveIntegerField(default=0, verbose_name="Кількість")
-    packages_count = models.PositiveIntegerField(default=0, verbose_name="Кількість упаковок")
-    image = models.ImageField(upload_to='products/', blank=True, null=True, verbose_name="Фото товару")
     description = models.TextField(blank=True, null=True, verbose_name="Опис товару")
     is_available = models.BooleanField(default=True, verbose_name="В наявності")
+    quantity = models.PositiveIntegerField(default=0, verbose_name="Кількість")
+    packages_count = models.PositiveIntegerField(default=0, verbose_name="Кількість упаковок")
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Ціна")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Оновлено")
     
+    class Meta:
+        abstract = True
+        unique_together = ('name', 'lot_number')
+
+class Product(BaseProduct):
+    code = models.CharField(max_length=50, verbose_name="Код товару", unique=True)
+    has_variations = models.BooleanField(default=False, verbose_name="Має варіації")
+    
     def __str__(self):
-        return self.name
+        return f"{self.real_name}"
     
     class Meta:
         verbose_name = "Товар"
         verbose_name_plural = "Товари"
 
 class ProductImage(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images', verbose_name="Товар")
-    image = models.ImageField(upload_to='products/', verbose_name="Зображення")
-    
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="Товар")
+    image = models.ImageField(upload_to='products/', blank=True, null=True, verbose_name="Фото товару")
+
     def __str__(self):
-        return f"Зображення для {self.product.name}"
+        return f"Фото для {self.product.real_name}"
     
     class Meta:
-        verbose_name = "Зображення товару"
-        verbose_name_plural = "Зображення товарів"
+        verbose_name = "Фото товару"
+        verbose_name_plural = "Фото товарів"
+
+
+class ProductVariation(BaseProduct):
+    parent_product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='variations', verbose_name="Основний товар")
+    sku = models.CharField(max_length=100, blank=True, null=True, unique=True, verbose_name="Артикул")
+    
+    def __str__(self):
+        return f"{self.parent_product.name} - {self.name}"
+    
+    class Meta:
+        verbose_name = "Варіація товару"
+        verbose_name_plural = "Варіації товарів"
+
+class ProductVariationImage(models.Model):
+    product = models.ForeignKey(ProductVariation, on_delete=models.CASCADE, verbose_name="Варіація товару")
+    image = models.ImageField(upload_to='product_variations/', blank=True, null=True, verbose_name="Фото товару")
+
+    def __str__(self):
+        return f"Фото для {self.product.name}"
 
 class Order(models.Model):
     STATUS_CHOICES = (
-        ('pending', 'В обробці'),
-        ('processing', 'Обробляється'),
-        ('completed', 'Завершено'),
+        ('accepted', 'Прийнято'),
+        ('successful', 'Успішно'),
         ('canceled', 'Скасовано'),
     )
     
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="Користувач")
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name="Статус")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='accepted', verbose_name="Статус")
     comment = models.TextField(blank=True, null=True, verbose_name="Коментар")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Оновлено")
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Загальна сума")
+    
+    def update_total_price(self):
+        self.total_price = sum(item.total_price for item in self.items.all())
+        self.save(update_fields=['total_price'])
     
     def __str__(self):
         return f"Замовлення №{self.id} від {self.created_at.strftime('%d.%m.%Y')}"
@@ -102,7 +121,7 @@ class Order(models.Model):
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items', verbose_name="Замовлення")
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="Товар")
+    product = models.ForeignKey(ProductVariation, on_delete=models.CASCADE, verbose_name="Товар")
     quantity = models.PositiveIntegerField(default=1, verbose_name="Кількість")
     price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Ціна за одиницю")
     total_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Загальна ціна")
@@ -111,8 +130,15 @@ class OrderItem(models.Model):
         return f"{self.product.name} x {self.quantity}"
     
     def save(self, *args, **kwargs):
+        # Якщо ціна не встановлена, беремо з товару
+        if not self.price:
+            self.price = self.product.price
+        if not self.quantity:
+            self.quantity = self.product.quantity
+        # Розрахунок загальної ціни
         self.total_price = self.price * self.quantity
         super().save(*args, **kwargs)
+        self.order.update_total_price()
     
     class Meta:
         verbose_name = "Товар у замовленні"

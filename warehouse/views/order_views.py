@@ -4,13 +4,14 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.http import HttpResponseRedirect
 from django.urls import reverse
-from ..models import Order, OrderItem, Product
+from ..models import Order, OrderItem, Product, ProductVariation
 from ..forms import OrderForm, OrderItemFormSet, AddToCartForm, CartItemForm, CheckoutForm
+import json
 
 @login_required
 def order_list(request):
     """View to display the list of orders."""
-    orders = Order.objects.filter(user=request.user).order_by('-created_at')
+    orders = Order.objects.all().order_by('-created_at')
     
     # Filter by status if provided
     status = request.GET.get('status', '')
@@ -22,16 +23,10 @@ def order_list(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
-    # Calculate total items for the current page
-    total_items = 0
-    for order in page_obj:
-        for item in order.items.all():
-            total_items += item.quantity
     
     context = {
-        'page_obj': page_obj,
+        'orders': page_obj,
         'current_status': status,
-        'total_items': total_items,
     }
     
     return render(request, 'warehouse/order/order_list.html', context)
@@ -54,75 +49,133 @@ def order_detail(request, pk):
 
 @login_required
 def order_create(request):
-    """View to create a new order directly (admin functionality)."""
+    """View to create a new order directly."""
     if request.method == 'POST':
-        form = OrderForm(request.POST)
-        formset = OrderItemFormSet(request.POST)
-        
-        if form.is_valid() and formset.is_valid():
-            order = form.save(commit=False)
-            order.user = request.user
-            order.save()
-            
-            formset.instance = order
-            items = formset.save()
-            
-            # Calculate total price
-            total_price = sum(item.price * item.quantity for item in items)
-            order.total_price = total_price
-            order.save()
-            
-            messages.success(request, f'Замовлення #{order.id} успішно створено.')
-            return redirect('order_detail', pk=order.pk)
-    else:
-        form = OrderForm()
-        formset = OrderItemFormSet()
+        # Перевіряємо, чи є дані про товари
+        items_json = request.POST.get('items_json', '')
+        if items_json:
+            try:
+                selected_items = json.loads(items_json)
+                
+                # Перевіряємо наявність товарів перед створенням замовлення
+                for item in selected_items:
+                    variation = get_object_or_404(ProductVariation, id=item['id'])
+                    quantity = int(item['quantity'])
+                    
+                    # Перевіряємо наявність товару
+                    if quantity > variation.quantity:
+                        messages.error(request, f'Недостатня кількість товару "{variation.name}". Доступно: {variation.quantity}.')
+                        return redirect('order_create')
+                
+                # Зберігаємо дані в сесії для використання при підтвердженні
+                request.session['order_items'] = items_json
+                request.session['order_comment'] = request.POST.get('comment', '')
+                
+                # Перенаправляємо на сторінку підтвердження
+                return redirect('order_confirm')
+                
+            except json.JSONDecodeError:
+                messages.error(request, 'Помилка при обробці даних замовлення.')
+        else:
+            messages.error(request, 'Не вибрано жодного товару.')
+    
+    # Якщо запит не POST або сталася помилка, показуємо форму створення замовлення
+    variations = ProductVariation.objects.filter(quantity__gt=0)
     
     context = {
-        'form': form,
-        'formset': formset,
-        'title': 'Створити нове замовлення',
+        'variations': variations,
     }
     
     return render(request, 'warehouse/order/order_form.html', context)
 
 @login_required
-def order_update(request, pk):
-    """View to update an existing order."""
-    order = get_object_or_404(Order, pk=pk)
-    
-    # Ensure users can only update their own orders (except for staff)
-    if not request.user.is_staff and order.user != request.user:
-        messages.error(request, 'У вас немає доступу для редагування цього замовлення.')
-        return redirect('order_list')
-    
+def order_confirm(request):
+    """View to confirm an order."""
     if request.method == 'POST':
-        form = OrderForm(request.POST, instance=order)
-        formset = OrderItemFormSet(request.POST, instance=order)
+        # Отримуємо дані про вибрані товари
+        items_json = request.POST.get('items_json', '[]')
+        try:
+            selected_items = json.loads(items_json)
+            
+            # Перевіряємо, чи є вибрані товари
+            if not selected_items:
+                messages.error(request, 'Не вибрано жодного товару.')
+                return redirect('order_create')
+            
+            # Отримуємо інформацію про кожен товар
+            order_items = []
+            total_sum = 0
+            
+            for item in selected_items:
+                variation = get_object_or_404(ProductVariation, id=item['id'])
+                quantity = int(item['quantity'])
+                
+                # Перевіряємо наявність товару
+                if quantity > variation.quantity:
+                    messages.error(request, f'Недостатня кількість товару "{variation.name}". Доступно: {variation.quantity}.')
+                    return redirect('order_create')
+                
+                item_total = quantity * variation.price
+                total_sum += item_total
+                
+                order_items.append({
+                    'variation': variation,
+                    'quantity': quantity,
+                    'item_total': item_total,
+                })
+            
+            context = {
+                'order_items': order_items,
+                'total_sum': total_sum,
+                'items_json': items_json,
+                'comment': request.POST.get('comment', ''),
+            }
+            
+            return render(request, 'warehouse/order/order_confirm.html', context)
+            
+        except json.JSONDecodeError:
+            messages.error(request, 'Помилка при обробці даних замовлення.')
+            return redirect('order_create')
+    
+    # Якщо запит GET, показуємо сторінку підтвердження з даними з сесії
+    items_json = request.session.get('order_items', '[]')
+    try:
+        selected_items = json.loads(items_json)
         
-        if form.is_valid() and formset.is_valid():
-            order = form.save()
-            items = formset.save()
+        # Перевіряємо, чи є вибрані товари
+        if not selected_items:
+            messages.error(request, 'Не вибрано жодного товару.')
+            return redirect('order_create')
+        
+        # Отримуємо інформацію про кожен товар
+        order_items = []
+        total_sum = 0
+        
+        for item in selected_items:
+            variation = get_object_or_404(ProductVariation, id=item['id'])
+            quantity = int(item['quantity'])
             
-            # Recalculate total price
-            total_price = sum(item.price * item.quantity for item in order.items.all())
-            order.total_price = total_price
-            order.save()
+            item_total = quantity * variation.price
+            total_sum += item_total
             
-            messages.success(request, f'Замовлення #{order.id} успішно оновлено.')
-            return redirect('order_detail', pk=order.pk)
-    else:
-        form = OrderForm(instance=order)
-        formset = OrderItemFormSet(instance=order)
-    
-    context = {
-        'form': form,
-        'formset': formset,
-        'order': order,
-        'title': f'Редагувати замовлення #{order.id}',
-    }
-    
-    return render(request, 'warehouse/order/order_form.html', context)
+            order_items.append({
+                'variation': variation,
+                'quantity': quantity,
+                'item_total': item_total,
+            })
+        
+        context = {
+            'order_items': order_items,
+            'total_sum': total_sum,
+            'items_json': items_json,
+            'comment': request.session.get('order_comment', ''),
+        }
+        
+        return render(request, 'warehouse/order/order_confirm.html', context)
+        
+    except json.JSONDecodeError:
+        messages.error(request, 'Помилка при обробці даних замовлення.')
+        return redirect('order_create')
 
 @login_required
 def order_cancel(request, pk):
@@ -134,14 +187,13 @@ def order_cancel(request, pk):
         messages.error(request, 'У вас немає доступу для скасування цього замовлення.')
         return redirect('order_list')
     
-    # Only allow cancelling pending or processing orders
-    if order.status not in ['pending', 'processing']:
-        messages.error(request, 'Можна скасувати лише замовлення в обробці або ті, що обробляються.')
-        return redirect('order_detail', pk=order.pk)
-    
     if request.method == 'POST':
         order.status = 'canceled'
+        for item in order.items.all():
+            item.product.quantity += item.quantity
+            item.product.save()
         order.save()
+
         messages.success(request, f'Замовлення #{order.id} успішно скасовано.')
         return redirect('order_list')
     
@@ -152,234 +204,80 @@ def order_cancel(request, pk):
     return render(request, 'warehouse/order/order_confirm_cancel.html', context)
 
 @login_required
-def add_to_cart(request, product_id):
-    """View to add a product to the cart."""
-    product = get_object_or_404(Product, pk=product_id)
+def order_complete(request):
+    """View для завершення та збереження замовлення."""
+    if request.method != 'POST':
+        messages.error(request, 'Неправильний метод запиту.')
+        return redirect('order_create')
     
-    if request.method == 'POST':
-        form = AddToCartForm(request.POST)
-        if form.is_valid():
-            quantity = form.cleaned_data['quantity']
-            
-            # Check if product is available
-            if not product.is_available:
-                messages.error(request, f'Товар "{product.name}" недоступний.')
-                return redirect('product_detail', pk=product_id)
-            
-            # Check if quantity is available
-            if quantity > product.quantity:
-                messages.error(
-                    request, 
-                    f'Недостатня кількість товару. Доступно: {product.quantity} {product.measurement_unit}.'
-                )
-                return redirect('product_detail', pk=product_id)
-            
-            # Get or create cart in session
-            cart = request.session.get('cart', {})
-            
-            # Add/update product in cart
-            product_key = str(product_id)
-            if product_key in cart:
-                cart[product_key]['quantity'] += quantity
-            else:
-                cart[product_key] = {
-                    'quantity': quantity,
-                    'name': product.name,
-                    'price': float(product.price),
-                }
-            
-            request.session['cart'] = cart
-            messages.success(request, f'Товар "{product.name}" додано до кошика.')
-            
-            # Redirect to cart or continue shopping
-            if request.POST.get('checkout', ''):
-                return redirect('view_cart')
-            else:
-                return redirect('product_list')
-    else:
-        form = AddToCartForm(initial={'product_id': product_id})
+    # Отримуємо дані про вибрані товари
+    items_json = request.POST.get('items_json', '[]')
+    comment = request.POST.get('comment', '')
     
-    context = {
-        'product': product,
-        'form': form,
-    }
-    
-    return render(request, 'warehouse/order/add_to_cart.html', context)
-
-@login_required
-def view_cart(request):
-    """View to display the cart contents."""
-    cart = request.session.get('cart', {})
-    cart_items = []
-    total_price = 0
-    
-    # Process cart items
-    for product_id, item_data in cart.items():
-        try:
-            product = Product.objects.get(pk=int(product_id))
-            quantity = item_data['quantity']
-            price = float(item_data['price'])
-            item_total = quantity * price
-            
-            cart_items.append({
-                'product': product,
-                'quantity': quantity,
-                'price': price,
-                'total': item_total,
-            })
-            
-            total_price += item_total
-        except Product.DoesNotExist:
-            # Remove non-existent products from cart
-            cart.pop(product_id, None)
-            request.session['cart'] = cart
-    
-    context = {
-        'cart_items': cart_items,
-        'total_price': total_price,
-    }
-    
-    return render(request, 'warehouse/order/cart.html', context)
-
-@login_required
-def update_cart(request):
-    """View to update cart contents."""
-    if request.method == 'POST':
-        cart = request.session.get('cart', {})
-        action = request.POST.get('action')
+    try:
+        selected_items = json.loads(items_json)
         
-        # Process each cart item
-        for key in cart.keys():
-            quantity_key = f'quantity_{key}'
-            if quantity_key in request.POST:
-                try:
-                    new_quantity = int(request.POST[quantity_key])
-                    if new_quantity > 0:
-                        cart[key]['quantity'] = new_quantity
-                    else:
-                        # Remove item if quantity is 0
-                        cart.pop(key, None)
-                except (ValueError, TypeError):
-                    pass
+        # Перевіряємо, чи є вибрані товари
+        if not selected_items:
+            messages.error(request, 'Не вибрано жодного товару.')
+            return redirect('order_create')
         
-        request.session['cart'] = cart
+        # Створюємо нове замовлення
+        order = Order.objects.create(
+            user=request.user,
+            status='accepted',  # Статус "очікує обробки"
+            comment=comment,
+            total_price=0  # Початкова сума, оновимо пізніше
+        )
         
-        if action == 'checkout':
-            return redirect('checkout')
-        else:
-            messages.success(request, 'Кошик успішно оновлено.')
-            return redirect('view_cart')
-    
-    return redirect('view_cart')
-
-@login_required
-def clear_cart(request):
-    """View to clear the cart."""
-    if 'cart' in request.session:
-        del request.session['cart']
-        messages.success(request, 'Кошик успішно очищено.')
-    
-    return redirect('view_cart')
-
-@login_required
-def checkout(request):
-    """View to process the checkout."""
-    cart = request.session.get('cart', {})
-    
-    if not cart:
-        messages.error(request, 'Ваш кошик порожній.')
-        return redirect('product_list')
-    
-    if request.method == 'POST':
-        form = CheckoutForm(request.POST)
-        if form.is_valid():
-            # Create new order
-            order = Order(
-                user=request.user,
-                status='pending',
-                comment=form.cleaned_data.get('comment', ''),
-                total_price=0,
+        # Додаємо товари до замовлення
+        total_sum = 0
+        
+        for item in selected_items:
+            variation = get_object_or_404(ProductVariation, id=item['id'])
+            quantity = int(item['quantity'])
+            
+            # Перевіряємо наявність товару
+            if quantity > variation.quantity:
+                # Видаляємо замовлення, якщо товару недостатньо
+                order.delete()
+                messages.error(request, f'Недостатня кількість товару "{variation.name}". Доступно: {variation.quantity}.')
+                return redirect('order_create')
+            
+            # Створюємо елемент замовлення
+            item_price = variation.price
+            item_total = quantity * item_price
+            total_sum += item_total
+            # Перевіряємо структуру моделі OrderItem і використовуємо правильні назви полів
+            OrderItem.objects.create(
+                order=order,
+                product=variation,  # Змінено з product на product_variation
+                quantity=quantity,
+                price=item_price,
+                total_price=item_total  # Змінено з total на total_price
             )
-            order.save()
             
-            total_price = 0
-            
-            # Create order items from cart
-            for product_id, item_data in cart.items():
-                try:
-                    product = Product.objects.get(pk=int(product_id))
-                    quantity = item_data['quantity']
-                    price = product.price
-                    
-                    # Check if quantity is available
-                    if quantity > product.quantity:
-                        messages.error(
-                            request, 
-                            f'Недостатня кількість товару "{product.name}". Доступно: {product.quantity}.'
-                        )
-                        order.delete()  # Rollback order creation
-                        return redirect('view_cart')
-                    
-                    # Create order item
-                    order_item = OrderItem(
-                        order=order,
-                        product=product,
-                        quantity=quantity,
-                        price=price,
-                        total_price=price * quantity,
-                    )
-                    order_item.save()
-                    
-                    # Update product quantity
-                    product.quantity -= quantity
-                    product.save()
-                    
-                    total_price += price * quantity
-                    
-                except Product.DoesNotExist:
-                    # Skip non-existent products
-                    continue
-            
-            # Update order total price
-            order.total_price = total_price
-            order.save()
-            
-            # Clear cart after successful checkout
-            del request.session['cart']
-            
-            messages.success(request, f'Замовлення #{order.id} успішно створено.')
-            return redirect('order_detail', pk=order.pk)
-    else:
-        form = CheckoutForm()
-    
-    # Calculate cart totals
-    cart_items = []
-    total_price = 0
-    
-    for product_id, item_data in cart.items():
-        try:
-            product = Product.objects.get(pk=int(product_id))
-            quantity = item_data['quantity']
-            price = float(product.price)
-            item_total = quantity * price
-            
-            cart_items.append({
-                'product': product,
-                'quantity': quantity,
-                'price': price,
-                'total': item_total,
-            })
-            
-            total_price += item_total
-        except Product.DoesNotExist:
-            # Remove non-existent products from cart
-            cart.pop(product_id, None)
-            request.session['cart'] = cart
-    
-    context = {
-        'form': form,
-        'cart_items': cart_items,
-        'total_price': total_price,
-    }
-    
-    return render(request, 'warehouse/order/checkout.html', context) 
+            # Зменшуємо кількість товару на складі
+            variation.quantity -= quantity
+            variation.save()
+        
+        # Оновлюємо загальну суму замовлення
+        order.total_price = total_sum  # Змінено з total_amount на total_price
+        order.save()
+        
+        # Очищаємо дані замовлення з сесії
+        if 'order_items' in request.session:
+            del request.session['order_items']
+        if 'order_comment' in request.session:
+            del request.session['order_comment']
+        
+        messages.success(request, f'Замовлення №{order.id} успішно створено!')
+        return redirect('order_detail', pk=order.id)  # Змінено з order_id на pk
+        
+    except json.JSONDecodeError:
+        print(False)
+        messages.error(request, 'Помилка при обробці даних замовлення.')
+        return redirect('order_create')
+    except Exception as e:
+        messages.error(request, f'Помилка при створенні замовлення: {str(e)}')
+        return redirect('order_create') 

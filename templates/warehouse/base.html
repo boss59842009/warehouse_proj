@@ -127,6 +127,11 @@
                                 <i class="fs-5 fas fa-exchange-alt"></i> <span class="ms-1 d-none d-sm-inline">Рух товарів</span>
                             </a>
                         </li>
+                        {% comment %} <li class="w-100">
+                            <a href="{% url 'movement_list' %}" class="nav-link px-0 align-middle {% if '/movements/' in request.path %}active{% endif %}">
+                                <i class="fs-5 fas fa-exchange-alt"></i> <span class="ms-1 d-none d-sm-inline">Рух товарів</span>
+                            </a>
+                        </li> {% endcomment %}
                         <li class="w-100">
                             <a href="{% url 'settings_index' %}" class="nav-link px-0 align-middle {% if '/settings/' in request.path %}active{% endif %}">
                                 <i class="fs-5 fas fa-cog"></i> <span class="ms-1 d-none d-sm-inline">Параметри</span>
