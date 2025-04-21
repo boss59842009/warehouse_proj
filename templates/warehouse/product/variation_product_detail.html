@@ -46,9 +46,9 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Інформація про варіацію товару</h5>
                 <div>
-                    <a href="{% url 'variation_product_update' variation_product.id %}" class="btn btn-sm btn-primary">
+                    {% comment %} <a href="{% url 'variation_product_update' variation_product.id %}" class="btn btn-sm btn-primary">
                         <i class="fas fa-edit me-1"></i> Редагувати
-                    </a>
+                    </a> {% endcomment %}
                     <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteProductModal">
                         <i class="fas fa-trash-alt me-1"></i> Видалити
                     </button>
@@ -62,8 +62,6 @@
                     {% else %}
                     <span class="badge bg-danger me-2">Немає в наявності</span>
                     {% endif %}
-                    
-                    <span class="badge bg-primary">Ціна: {{ variation_product.price }} грн</span>
                 </div>
                 
                 <table class="table table-striped">

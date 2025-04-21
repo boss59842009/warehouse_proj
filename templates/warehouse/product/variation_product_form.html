@@ -23,14 +23,21 @@
                             {% endif %}
                         </div>
                         <div class="col-md-6 mb-3">
+                            <label for="{{ form.import_name.id_for_label }}" class="form-label">Назва імпорту</label>
+                            {{ form.import_name }}
+                            {% if form.import_name.errors %}
+                            <div class="text-danger small mt-1">{{ form.import_name.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
                             <label for="{{ form.parent_product.id_for_label }}" class="form-label">Основний товар</label>
                             <input type="text" class="form-control" value="{{ product.real_name }}" disabled>
                             {% if form.parent_product.errors %}
                             <div class="text-danger small mt-1">{{ form.parent_product.errors }}</div>
                             {% endif %}
                         </div>
-                    </div>
-                    <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="{{ form.culture.id_for_label }}" class="form-label">Культура</label>
                             <input type="text" class="form-control" value="{{ product.culture }}" disabled>
@@ -38,11 +45,20 @@
                             <div class="text-danger small mt-1">{{ form.culture.errors }}</div>
                             {% endif %}
                         </div>
+                    </div>
+                    <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="{{ form.quantity.id_for_label }}" class="form-label">Кількість на складі</label>
-                            {{ form.quantity }}
-                            {% if form.quantity.errors %}
-                            <div class="text-danger small mt-1">{{ form.quantity.errors }}</div>
+                            <label for="{{ form.package_type.id_for_label }}" class="form-label">Тип упаковки</label>
+                            {{ form.package_type }}
+                            {% if form.package_type.errors %}
+                            <div class="text-danger small mt-1">{{ form.package_type.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.measurement_unit.id_for_label }}" class="form-label">Одиниця виміру</label>
+                            {{ form.measurement_unit }}
+                            {% if form.measurement_unit.errors %}
+                            <div class="text-danger small mt-1">{{ form.measurement_unit.errors }}</div>
                             {% endif %}
                         </div>
                     </div>

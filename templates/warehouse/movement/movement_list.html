@@ -7,58 +7,38 @@
 
 {% block content %}
 <div class="row mb-3">
-    <div class="col-md-6">
-        <div class="d-flex">
-            <a href="{% url 'movement_create' %}" class="btn btn-primary btn-sm me-2">
-                <i class="fas fa-plus me-1"></i> Новий рух товару
-            </a>
-            <a href="{% url 'product_list' %}" class="btn btn-outline-secondary btn-sm me-2">
-                <i class="fas fa-cubes me-1"></i> Товари
-            </a>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <form method="get" class="d-flex justify-content-end">
-            <div class="input-group input-group-sm" style="max-width: 300px;">
-                <input type="text" name="search" class="form-control" placeholder="Пошук за товаром..." 
-                       value="{{ request.GET.search|default:'' }}">
-                <button class="btn btn-outline-secondary" type="submit">
-                    <i class="fas fa-search"></i>
-                </button>
-            </div>
-        </form>
+    <div class="col-md-12 text-end">
+        <a href="{% url 'product_income_create' %}" class="btn btn-primary btn-sm me-2">
+            <i class="fas fa-plus me-1"></i> Додати прибуткову накладну
+        </a>
+        <a href="{% url 'inventory_create' %}" class="btn btn-primary btn-sm me-2">
+            <i class="fas fa-plus me-1"></i> Інвентаризація
+        </a>
     </div>
 </div>
 
 <div class="card shadow-sm border mb-4">
-    <div class="card-header bg-white">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-            <h5 class="card-title mb-0">Рух товарів</h5>
-            
-        </div>
-     
-    
     <!-- Фільтри -->
     <div class="product-filters px-3 pt-2 pb-1 border-bottom bg-light">
         <div class="d-flex flex-wrap align-items-center">
             <div class="filter-label me-2 my-1 fw-medium">Фільтри:</div>
-            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="product">
-                Назва товару
+            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="culture">
+                Культура
             </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="type">
-                Тип руху
+            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="real_name">
+                Назва справжня
             </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="date">
-                Дата
+            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="name">
+                Назва
             </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="user">
-                Користувач
+            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="lot_number">
+                Номер лоту
             </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="document">
-                Документ
+            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="measurement_unit">
+                Од. виміру
             </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="lot">
-                Лот
+            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="package_type">
+                Тип упаковки
             </button>
         </div>
     </div>
@@ -153,9 +133,6 @@
                             <div class="text-muted">
                                 <i class="fas fa-exchange-alt fa-2x mb-3"></i>
                                 <p>Записів руху товарів поки немає.</p>
-                                <a href="{% url 'movement_create' %}" class="btn btn-sm btn-primary">
-                                    <i class="fas fa-plus me-1"></i> Створити рух товару
-                                </a>
                             </div>
                         </td>
                     </tr>

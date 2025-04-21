@@ -1,6 +1,9 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+from django.db.models.signals import pre_delete
+from django.dispatch import receiver
+import os
     
 
 class PackageType(models.Model):
@@ -35,8 +38,7 @@ class Culture(models.Model):
 
 class BaseProduct(models.Model):
     name = models.CharField(max_length=200, verbose_name="Назва продукту", unique=True, null=True, blank=True)
-    real_name = models.CharField(max_length=200, verbose_name="Назва справжня")
-    culture = models.ForeignKey(Culture, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Культура")
+    real_name = models.CharField(max_length=200, verbose_name="Назва справжня", blank=True, null=True)
     package_type = models.ForeignKey(PackageType, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Тип упаковки")
     measurement_unit = models.ForeignKey(MeasurementUnit, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Одиниця виміру")
     lot_number = models.CharField(max_length=100, verbose_name="Номер лоту", blank=True, null=True)
@@ -54,6 +56,7 @@ class BaseProduct(models.Model):
         unique_together = ('name', 'lot_number')
 
 class Product(BaseProduct):
+    culture = models.ForeignKey(Culture, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Культура")
     code = models.CharField(max_length=50, verbose_name="Код товару", unique=True)
     has_variations = models.BooleanField(default=False, verbose_name="Має варіації")
     
@@ -96,13 +99,12 @@ class ProductVariationImage(models.Model):
 
 class Order(models.Model):
     STATUS_CHOICES = (
-        ('accepted', 'Прийнято'),
         ('successful', 'Успішно'),
         ('canceled', 'Скасовано'),
     )
     
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="Користувач")
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='accepted', verbose_name="Статус")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='successful', verbose_name="Статус")
     comment = models.TextField(blank=True, null=True, verbose_name="Коментар")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Оновлено")
@@ -164,29 +166,47 @@ class Inventory(models.Model):
         verbose_name = "Інвентаризація"
         verbose_name_plural = "Інвентаризації"
 
-class ProductMovement(models.Model):
-    MOVEMENT_TYPES = (
-        ('incoming', 'Надходження'),
-        ('outgoing', 'Видача'),
-        ('return', 'Повернення'),
-        ('write_off', 'Списання'),
-    )
-    
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="Товар")
-    movement_type = models.CharField(max_length=20, choices=MOVEMENT_TYPES, verbose_name="Тип руху")
-    quantity = models.PositiveIntegerField(verbose_name="Кількість")
-    date = models.DateTimeField(default=timezone.now, verbose_name="Дата")
-    document_number = models.CharField(max_length=100, blank=True, null=True, verbose_name="Номер документу")
-    comment = models.TextField(blank=True, null=True, verbose_name="Коментар")
+class ProductIncome(models.Model):
+    movement_type = models.CharField(max_length=100, default='incoming', verbose_name="Тип накладної")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Оновлено")
     performed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, verbose_name="Виконав")
-    order = models.ForeignKey(Order, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Замовлення")
+    total_quantity = models.PositiveIntegerField(default=0, verbose_name="Загальна кількість")
+    total_packages_count = models.PositiveIntegerField(default=0, verbose_name="Загальна кількість упаковок")
+
+    def update_total_quantity(self):
+        self.total_quantity = sum(item.quantity for item in self.items.all())
+        self.save(update_fields=['total_quantity'])
     
+    def update_total_packages_count(self):
+        self.total_packages_count = sum(item.packages_count for item in self.items.all())
+        self.save(update_fields=['total_packages_count'])
+
     def __str__(self):
-        return f"{self.get_movement_type_display()} {self.product.name} ({self.quantity} {self.product.measurement_unit})"
+        return f"Оприбуткування {self.created_at.strftime('%d.%m.%Y')}"
     
     class Meta:
-        verbose_name = "Рух товару"
-        verbose_name_plural = "Рух товарів"
+        verbose_name = "Прибуткова накладна"
+        verbose_name_plural = "Прибуткові накладні"
+
+class ProductIncomeItem(models.Model):
+    product_income = models.ForeignKey(ProductIncome, on_delete=models.CASCADE, verbose_name="Оприбуткування товару")
+    product_variation = models.ForeignKey(ProductVariation, on_delete=models.CASCADE, verbose_name="Варіація товару")
+    quantity = models.PositiveIntegerField(verbose_name="Кількість")
+    packages_count = models.PositiveIntegerField(verbose_name="Кількість упаковок")
+    lot_number = models.CharField(max_length=100, blank=True, null=True, verbose_name="Номер лоту")
+    package_type = models.ForeignKey(PackageType, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Тип упаковки")
+    measurement_unit = models.ForeignKey(MeasurementUnit, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Одиниця виміру")
+
+    def __str__(self):
+        return f"{self.product_variation.name} ({self.quantity} {self.product_variation.measurement_unit})"
+    
+    class Meta:
+        verbose_name = "Варіація в прибутковій накладній"
+        verbose_name_plural = "Варіації в прибутковій накладній"
+
+class ProductInventory(models.Model):
+    pass
 
 class BackupSettings(models.Model):
     auto_backup = models.BooleanField(default=True, verbose_name="Автоматичне резервне копіювання")
@@ -212,3 +232,15 @@ class SystemParameter(models.Model):
     class Meta:
         verbose_name = "Системний параметр"
         verbose_name_plural = "Системні параметри" 
+
+class SystemParam(models.Model):
+    name = models.CharField(max_length=100, verbose_name="Назва параметра")
+    parameter = models.ForeignKey('self', on_delete=models.CASCADE, verbose_name="Параметр")
+
+    def __str__(self):
+        return self.name
+    
+    class Meta:
+        verbose_name = "Системний параметр"
+        verbose_name_plural = "Системні параметри"
+

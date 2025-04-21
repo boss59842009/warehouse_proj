@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.db.models import Sum, Count, F, Q
-from ..models import Product, Order, Inventory, ProductMovement
+from ..models import Product, Order, Inventory, ProductIncome
 
 @login_required
 def home(request):

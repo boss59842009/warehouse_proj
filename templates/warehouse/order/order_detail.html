@@ -19,8 +19,7 @@
                 <h5 class="card-title mb-0">Інформація про замовлення</h5>
                 <div>
                     <span class="badge 
-                        {% if order.status == 'accepted' %}bg-primary
-                        {% elif order.status == 'successful' %}bg-info text-dark
+                        {% if order.status == 'successful' %}bg-success
                         {% elif order.status == 'canceled' %}bg-danger
                         {% else %}bg-secondary{% endif %}">
                         {{ order.get_status_display }}
@@ -75,8 +74,8 @@
                             <tr>
                                 <th>Товар</th>
                                 <th style="width: 150px;">Кількість</th>
-                                <th style="width: 150px;">Ціна</th>
-                                <th style="width: 150px;">Сума</th>
+                                {% comment %} <th style="width: 150px;">Ціна</th>
+                                <th style="width: 150px;">Сума</th> {% endcomment %}
                             </tr>
                         </thead>
                         <tbody>
@@ -87,8 +86,6 @@
                                     <small class="text-muted">{{ item.product.code }}</small>
                                 </td>
                                 <td>{{ item.quantity }} {{ item.product.measurement_unit.name }}</td>
-                                <td>{{ item.price|floatformat:2 }} грн.</td>
-                                <td>{{ item.total_price|floatformat:2 }} грн.</td>
                             </tr>
                             {% empty %}
                             <tr>
@@ -98,12 +95,6 @@
                             </tr>
                             {% endfor %}
                         </tbody>
-                        <tfoot class="bg-light">
-                            <tr>
-                                <th colspan="3" class="text-end">Всього:</th>
-                                <th>{{ order.total_price|floatformat:2 }} грн.</th>
-                            </tr>
-                        </tfoot>
                     </table>
                 </div>
             </div>
@@ -113,14 +104,14 @@
     <!-- Бокова панель -->
     <div class="col-md-4">
         <!-- Панель дій -->
-        {% if order.status == 'accepted' or order.status == 'successful' %}
+        {% if order.status == 'successful' %}
         <div class="card shadow-sm border mb-4">
             <div class="card-header bg-white">
                 <h5 class="card-title mb-0">Дії</h5>
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#changeStatusModal" data-status="canceled">
+                    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteOrderModal{{ order.id }}">
                         <i class="fas fa-ban me-1"></i> Скасувати замовлення
                     </button>                    
                 </div>
@@ -129,7 +120,28 @@
         {% endif %}
     </div>
 </div>
-
+<!-- Delete Order Modal -->
+<div class="modal fade" id="deleteOrderModal{{ order.id }}" tabindex="-1" aria-labelledby="deleteOrderModalLabel{{ order.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteOrderModalLabel{{ order.id }}">Підтвердження скасування</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрити"></button>
+            </div>
+            <div class="modal-body">
+                <p>Ви впевнені, що хочете скасувати замовлення "{{ order.id }}"?</p>
+                <p class="text-danger"><strong>Увага:</strong> Ця дія не може бути скасована.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Відміна</button>
+                <form method="post" action="{% url 'order_cancel' order.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Скасувати замовлення</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 
 {% comment %} <!-- Модальне вікно зміни статусу -->
 <div class="modal fade" id="changeStatusModal" tabindex="-1" aria-hidden="true">

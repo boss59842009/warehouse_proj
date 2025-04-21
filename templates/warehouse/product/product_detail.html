@@ -61,57 +61,39 @@
                     <span class="badge bg-success me-2">В наявності</span>
                     {% else %}
                     <span class="badge bg-danger me-2">Немає в наявності</span>
-                    {% endif %}
-                    
-                    <span class="badge bg-primary">Ціна: {{ product.price }} грн</span>
+                    {% endif %}                    
                 </div>
                 
                 <table class="table table-striped">
                     <tbody>
                         <tr>
-                            <th>Справжня назва:</th>
+                            <th>Культура:</th>
+                            <td>{{ product.culture.name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Назва справжня:</th>
                             <td>{{ product.real_name }}</td>
                         </tr>
                         <tr>
                             <th>Назва:</th>
                             <td>{{ product.name }}</td>
                         </tr>
-                        {% if product.culture %}
                         <tr>
-                            <th>Культура:</th>
-                            <td>{{ product.culture.name }}</td>
+                            <th>Номер лоту:</th>
+                            <td>{{ product.lot_number }}</td>
+                        </tr> 
+                        <tr>
+                            <th>Одиниця виміру:</th>
+                            <td>{{ product.measurement_unit.name }}</td>
                         </tr>
                         <tr>
-                            <th>Код:</th>
-                            <td>{{ product.code }}</td>
-                        </tr>
-                        {% endif %}
-                        <tr>
-                            <th>Кількість:</th>
-                            <td>{{ product.quantity }} {% if product.measurement_unit %}{{ product.measurement_unit.name }}{% endif %}</td>
+                            <th>Тип упаковки:</th>
+                            <td>{{ product.package_type.name }}</td>
                         </tr>
                         <tr>
                             <th>Кількість упаковок:</th>
                             <td>{{ product.packages_count }}</td>
                         </tr>
-                        {% if product.package_type %}
-                        <tr>
-                            <th>Тип упаковки:</th>
-                            <td>{{ product.package_type.name }}</td>
-                        </tr>
-                        {% endif %}
-                        {% if product.lot_number %}
-                        <tr>
-                            <th>Номер лоту:</th>
-                            <td>{{ product.lot_number }}</td>
-                        </tr>
-                        {% endif %}
-                        {% if product.import_name %}
-                        <tr>
-                            <th>Назва імпорту:</th>
-                            <td>{{ product.import_name }}</td>
-                        </tr>
-                        {% endif %}
                         <tr>
                             <th>Створено:</th>
                             <td>{{ product.created_at|date:"d.m.Y H:i" }}</td>
@@ -138,11 +120,11 @@
     <div class="col-md-6">
         <h4>Варіації товару</h4>
     </div>
-    <div class="col-md-6 text-end">
+    {% comment %} <div class="col-md-6 text-end">
         <a href="{% url 'variation_product_create' product.id %}" class="btn btn-primary">
             <i class="fas fa-plus me-1"></i> Додати варіацію товару
         </a>
-    </div>
+    </div> {% endcomment %}
 </div>
 <!-- Список варіацій товару -->
 <div class="card shadow-sm border">
@@ -152,13 +134,13 @@
                 <thead class="bg-light">
                     <tr>
                         <th scope="col" style="width: 100px;">Фото</th>
+                        <th scope="col" style="width: 150px;">Культура</th>
                         <th scope="col" style="width: 200px;">Назва справжня</th>
                         <th scope="col"style="width: 150px;">Назва</th>
-                        <th scope="col" style="width: 150px;">Культура</th>
+                        <th scope="col" style="width: 150px;">Номер лоту</th>
+                        <th scope="col" style="width: 150px;">Од. виміру</th>
                         <th scope="col" style="width: 150px;">Тип упаковки</th>
-                        <th scope="col" style="width: 150px;">Кількість</th>
                         <th scope="col" style="width: 150px;">Кількість упаковок</th>
-                        <th scope="col" style="width: 150px;">Ціна</th>
                         <th scope="col" style="width: 100px;">Дії</th>
                     </tr>
                 </thead>
@@ -166,27 +148,27 @@
                     {% for variation in variations %}
                     <tr>
                         <td>
-                            {% if variation.productvariationimage_set.exists %}
-                                <img src="{{ variation.productvariationimage_set.first.image.url }}" alt="{{ variation.name }}" class="img-thumbnail" style="max-height: 80px;">
+                            {% if product.productimage_set.exists %}
+                                <img src="{{ product.productimage_set.first.image.url }}" alt="{{ product.name }}" class="img-thumbnail" style="max-height: 80px;">
                             {% else %}
                                 <div class="text-center text-muted"><i class="fas fa-image fa-2x"></i></div>
                             {% endif %}
                         </td>
+                        <td>{{ variation.parent_product.culture.name }}</td>
                         <td>{{ variation.real_name }}</td>
                         <td>{{ variation.name }}</td>
-                        <td>{{ variation.culture.name }}</td>
+                        <td>{{ variation.lot_number }}</td>
+                        <td>{{ variation.measurement_unit.name }}</td>
                         <td>{{ variation.package_type.name }}</td>
-                        <td>{{ variation.quantity }}</td>
                         <td>{{ variation.packages_count }}</td>
-                        <td>{{ variation.price|floatformat:2 }} грн.</td>
                         <td>
                             <div class="btn-group btn-group-sm">
                                 <a href="{% url 'variation_product_detail' variation.id %}" class="btn btn-outline-primary" title="Переглянути">
                                     <i class="fas fa-eye"></i>
                                 </a>
-                                <a href="{% url 'variation_product_update' variation.id %}" class="btn btn-outline-secondary" title="Редагувати">
+                                {% comment %} <a href="{% url 'variation_product_update' variation.id %}" class="btn btn-outline-secondary" title="Редагувати">
                                     <i class="fas fa-edit"></i>
-                                </a>
+                                </a> {% endcomment %}
                                 <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteProductModal{{ variation.id }}" title="Видалити">
                                     <i class="fas fa-trash"></i>
                                 </button>
@@ -222,10 +204,7 @@
                             <div class="d-flex flex-column align-items-center py-3">
                                 <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
                                 <h5 class="text-muted">Варіації товару не знайдено</h5>
-                                <p class="text-muted mb-3">Спробуйте змінити параметри пошуку або створіть нову варіацію товару</p>
-                                <a href="{% url 'variation_product_create' product.id %}" class="btn btn-primary">
-                                    <i class="fas fa-plus me-1"></i> Додати варіацію товару
-                                </a>
+                                <p class="text-muted mb-3">Створіть нову варіацію товару</p>
                             </div>
                         </td>
                     </tr>

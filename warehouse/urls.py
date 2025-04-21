@@ -37,7 +37,7 @@ urlpatterns = [
     # path('checkout/', views.checkout, name='checkout'),
     
     # Inventory URLs
-    path('inventory/', views.inventory_list, name='inventory_list'),
+    path('cuantity/', views.cuantity_list, name='cuantity_list'),
     path('inventory/<int:pk>/', views.inventory_detail, name='inventory_detail'),
     path('inventory/new/', views.inventory_create, name='inventory_create'),
     path('inventory/<int:pk>/edit/', views.inventory_update, name='inventory_update'),
@@ -46,12 +46,12 @@ urlpatterns = [
     path('reports/stock/', views.stock_report, name='stock_report'),
     
     # Product Movement URLs
+    path('product_income/new/', views.product_income_create, name='product_income_create'),
     path('movements/', views.movement_list, name='movement_list'),
-    path('movements/<int:pk>/', views.movement_detail, name='movement_detail'),
-    path('movements/new/', views.movement_create, name='movement_create'),
-    path('movements/incoming/', views.incoming_movement, name='incoming_movement'),
-    path('movements/outgoing/', views.outgoing_movement, name='outgoing_movement'),
-    path('products/<int:product_id>/movements/', views.product_movements, name='product_movements'),
+    # path('movements/<int:pk>/', views.movement_detail, name='movement_detail'),
+    # path('movements/incoming/', views.incoming_movement, name='incoming_movement'),
+    # path('movements/outgoing/', views.outgoing_movement, name='outgoing_movement'),
+    # path('products/<int:product_id>/movements/', views.product_movements, name='product_movements'),
     
     # Settings URLs
     path('settings/', views.settings_index, name='settings_index'),

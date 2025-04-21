@@ -8,12 +8,6 @@
 <div class="row mb-3">
     <div class="col-md-6">
         <div class="d-flex">
-            <a href="{% url 'inventory_create' %}" class="btn btn-primary btn-sm me-2">
-                <i class="fas fa-plus me-1"></i> Нова інвентаризація
-            </a>
-            <a href="{% url 'bulk_inventory' %}" class="btn btn-outline-primary btn-sm me-2">
-                <i class="fas fa-layer-group me-1"></i> Групова інвентаризація
-            </a>
             <a href="{% url 'stock_report' %}" class="btn btn-outline-secondary btn-sm">
                 <i class="fas fa-file-alt me-1"></i> Звіт про залишки
             </a>
@@ -32,29 +26,28 @@
     </div>
 </div>
 
-<div class="card shadow-sm border mb-4">
-    <div class="card-header bg-white d-flex justify-content-between align-items-center">
-        <h5 class="card-title mb-0">Історія інвентаризацій</h5>
-    </div>
-    
+<div class="card shadow-sm border mb-4">    
     <!-- Фільтри -->
     <div class="product-filters px-3 pt-2 pb-1 border-bottom bg-light">
         <div class="d-flex flex-wrap align-items-center">
             <div class="filter-label me-2 my-1 fw-medium">Фільтри:</div>
-            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="product">
-                Назва продукту
+            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="culture">
+                Культура
             </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="category">
-                Категорія
+            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="real_name">
+                Назва справжня
             </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="date">
-                Дата
+            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="name">
+                Назва
             </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="user">
-                Користувач
+            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="lot_number">
+                Номер лоту
             </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="status">
-                Статус
+            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="measurement_unit">
+                Од. виміру
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="package_type">
+                Тип упаковки
             </button>
         </div>
     </div>
@@ -64,79 +57,40 @@
             <table class="table table-hover mb-0">
                 <thead class="bg-light">
                     <tr>
-                        <th>ID</th>
-                        <th>Товар</th>
-                        <th>Очікувана кількість</th>
-                        <th>Фактична кількість</th>
-                        <th>Розбіжність</th>
-                        <th>Дата</th>
-                        <th>Виконавець</th>
-                        <th>Дії</th>
+                        <th scope="col" style="width: 100px;">Фото</th>
+                        <th scope="col" style="width: 150px;">Культура</th>
+                        <th scope="col" style="width: 200px;">Назва справжня</th>
+                        <th scope="col"style="width: 150px;">Назва</th>
+                        <th scope="col" style="width: 150px;">Номер лоту</th>
+                        <th scope="col" style="width: 150px;">Од. виміру</th>
+                        <th scope="col" style="width: 150px;">Тип упаковки</th>
+                        <th scope="col" style="width: 150px;">Кількість упаковок</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for inventory in page_obj %}
+                    {% for variation in variations %}
                     <tr>
-                        <td>{{ inventory.id }}</td>
                         <td>
-                            <div class="d-flex align-items-center">
-                                {% if inventory.product.image %}
-                                <img src="{{ inventory.product.image.url }}" alt="{{ inventory.product.name }}" class="me-2" 
-                                     style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">
-                                {% else %}
-                                <img src="/static/img/no-image.png" alt="No Image" class="me-2" 
-                                     style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">
-                                {% endif %}
-                                <div>
-                                    <div class="fw-medium">{{ inventory.product.name }}</div>
-                                    <div class="text-muted small">{{ inventory.product.category.name }}</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>{{ inventory.quantity_expected }} {{ inventory.product.measurement_unit.name }}</td>
-                        <td>{{ inventory.quantity_actual }} {{ inventory.product.measurement_unit.name }}</td>
-                        <td>
-                            {% with difference=inventory.quantity_actual|add:"-"|add:inventory.quantity_expected %}
-                            {% if difference == 0 %}
-                            <span class="badge bg-success">Немає (0)</span>
-                            {% elif difference > 0 %}
-                            <span class="badge bg-info">Надлишок (+{{ difference }})</span>
+                            {% if variation.parent_product.productimage_set.exists %}
+                                <img src="{{ variation.parent_product.productimage_set.first.image.url }}" alt="{{ variation.name }}" class="img-thumbnail" style="max-height: 80px;">
                             {% else %}
-                            <span class="badge bg-danger">Нестача ({{ difference }})</span>
+                                <div class="text-center text-muted"><i class="fas fa-image fa-2x"></i></div>
                             {% endif %}
-                            {% endwith %}
                         </td>
-                        <td>{{ inventory.created_at|date:"d.m.Y H:i" }}</td>
-                        <td>{{ inventory.performed_by.username }}</td>
-                        <td>
-                            <div class="btn-group">
-                                <a href="{% url 'inventory_detail' pk=inventory.id %}" class="btn btn-sm btn-outline-primary py-1 px-2">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <a href="{% url 'inventory_update' pk=inventory.id %}" class="btn btn-sm btn-outline-secondary py-1 px-2">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="8" class="text-center py-4">
-                            <div class="text-muted">
-                                <i class="fas fa-clipboard-list fa-2x mb-3"></i>
-                                <p>Записів інвентаризації поки немає.</p>
-                                <a href="{% url 'inventory_create' %}" class="btn btn-sm btn-primary">
-                                    <i class="fas fa-plus me-1"></i> Створити інвентаризацію
-                                </a>
-                            </div>
-                        </td>
+                        <td>{{ variation.parent_product.culture.name }}</td>
+                        <td>{{ variation.real_name }}</td>
+                        <td>{{ variation.name }}</td>
+                        <td>{{ variation.lot_number }}</td>
+                        <td>{{ variation.measurement_unit.name }}</td>
+                        <td>{{ variation.package_type.name }}</td>
+                        <td>{{ variation.packages_count }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
-    
+   
     <!-- Пагінація -->
     {% if page_obj.has_other_pages %}
     <div class="card-footer bg-white">

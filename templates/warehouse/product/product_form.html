@@ -6,149 +6,280 @@
 
 {% block content %}
 <div class="row">
-    <div class="col-md-8">
-        <div class="card shadow-sm border mb-4">
-            <div class="card-header bg-white">
-                <h5 class="card-title mb-0">Інформація про товар</h5>
+    <form method="post" enctype="multipart/form-data" id="productForm">
+        {% csrf_token %}
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card shadow-sm border mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="card-title mb-0">Інформація про товар</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.real_name.id_for_label }}" class="form-label">Назва справжня</label>
+                                {{ form.real_name }}
+                                {% if form.real_name.errors %}
+                                <div class="text-danger small mt-1">{{ form.real_name.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.code.id_for_label }}" class="form-label">Код товару</label>
+                                {{ form.code }}
+                                {% if form.code.errors %}
+                                <div class="text-danger small mt-1">{{ form.code.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.culture.id_for_label }}" class="form-label">Культура</label>
+                                {{ form.culture }}
+                                {% if form.culture.errors %}
+                                <div class="text-danger small mt-1">{{ form.culture.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="has_variations" name="has_variations" {% if has_variations %}checked{% endif %}>
+                            <label class="form-check-label" for="has_variations">
+                                Варіації товару
+                            </label>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <form method="post" enctype="multipart/form-data" id="productForm">
-                    {% csrf_token %}
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="{{ form.real_name.id_for_label }}" class="form-label">Назва справжня</label>
-                            {{ form.real_name }}
-                            {% if form.real_name.errors %}
-                            <div class="text-danger small mt-1">{{ form.real_name.errors }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="{{ form.code.id_for_label }}" class="form-label">Код товару</label>
-                            {{ form.code }}
-                            {% if form.code.errors %}
-                            <div class="text-danger small mt-1">{{ form.code.errors }}</div>
-                            {% endif %}
+            
+            <div class="col-md-6">
+                <div class="card shadow-sm border mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Зображення товару</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="image-formset">
+                            <!-- Поля управління формсетом (приховані) -->
+                            {{ formset.management_form }}
+                            
+                            <!-- Для зображень -->
+                            <input type="hidden" name="images-TOTAL_FORMS" value="0" id="id_images-TOTAL_FORMS">
+                            <input type="hidden" name="images-INITIAL_FORMS" value="0" id="id_images-INITIAL_FORMS">
+                            <input type="hidden" name="images-MIN_NUM_FORMS" value="0" id="id_images-MIN_NUM_FORMS">
+                            <input type="hidden" name="images-MAX_NUM_FORMS" value="5" id="id_images-MAX_NUM_FORMS">
+                            
+                            <div class="row" id="image-container">
+                                {% for img_form in formset %}
+                                <div class="col-md-6 col-lg-4 mb-3 image-item" data-index="{{ forloop.counter0 }}" {% if img_form.instance.DELETE %}style="display: none;"{% endif %}>
+                                    <div class="image-form" style="width: 100%; height: 120px; display: block; text-align: center;">
+                                        {% if img_form.instance.pk %}
+                                        <img src="{{ img_form.instance.image.url }}" alt="Попередній перегляд" class="img-thumbnail" style="max-height: 90px; max-width: 90%; object-fit: contain;">
+                                        {% else %}
+                                        <div class="form-group">
+                                            {{ img_form.image }}
+                                        </div>
+                                        {% endif %}
+                                        <button type="button" class="btn btn-sm btn-danger remove-image mt-1">
+                                            <i class="fas fa-trash"></i> Видалити
+                                        </button>
+                                    </div>
+                                    <div style="display: none;">
+                                        {{ img_form.id }}
+                                        {{ img_form.DELETE }}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            
+                            <!-- Шаблон для нового зображення -->
+                            <div id="empty-image-form" style="display: none;">
+                                <div class="col-md-6 col-lg-4 mb-3 image-item">
+                                    <div class="image-form" style="width: 100%; height: 120px; display: block; text-align: center;">
+                                        <div class="form-group">
+                                            <input type="file" name="images-__prefix__-image" id="id_images-__prefix__-image" accept="image/*">
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-danger remove-image mt-1">
+                                            <i class="fas fa-trash"></i> Видалити
+                                        </button>
+                                    </div>
+                                    <div style="display: none;">
+                                        <input type="hidden" name="images-__prefix__-id" id="id_images-__prefix__-id">
+                                        <input type="checkbox" name="images-__prefix__-DELETE" id="id_images-__prefix__-DELETE" style="display: none;">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <button type="button" id="add-image" class="btn btn-outline-primary mt-3">
+                                <i class="fas fa-plus"></i> Додати зображення
+                            </button>
                         </div>
                     </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="{{ form.culture.id_for_label }}" class="form-label">Культура</label>
-                            {{ form.culture }}
-                            {% if form.culture.errors %}
-                            <div class="text-danger small mt-1">{{ form.culture.errors }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="{{ form.quantity.id_for_label }}" class="form-label">Кількість на складі</label>
-                            {{ form.quantity }}
-                            {% if form.quantity.errors %}
-                            <div class="text-danger small mt-1">{{ form.quantity.errors }}</div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="mb-0">Зображення товару</h5>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Варіації товару в окремій картці знизу -->
+        <div id="variations-container">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card shadow-sm border mb-4">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0">Варіації товару</h5>
                         </div>
                         <div class="card-body">
-                            <div id="image-formset">
-                                <!-- Поля управління формсетом (Django генерує їх автоматично) -->
-                                {{ formset.management_form }}
-                                
-                                <div class="row" id="image-container">
-                                    {% for img_form in formset %}
-                                    {% if img_form.instance.pk and not img_form.instance.DELETE %}
-                                    <div class="col-md-3 mb-3 image-item" data-index="{{ forloop.counter0 }}">
-                                        <div class="image-form" style="width: 150px; height: 150px; display: block;">
-                                            <img src="{{ img_form.instance.image.url }}" alt="Попередній перегляд" class="img-thumbnail" style="max-width: 100%; max-height: 100%;">
-                                            <button type="button" class="btn btn-sm btn-danger remove-image mt-1">
+                            <!-- Поля управління формсетом варіацій (приховані) -->
+                            {{ variations_formset.management_form }}
+                            <div id="variations-list">
+                                {% for variation_form in variations_formset %}
+                                <div class="variation-item mb-3 border-bottom pb-3" data-index="{{ forloop.counter0 }}">
+                                    <div class="row">
+                                        <div class="col-md-2 mb-2">
+                                            <label class="form-label">Назва</label>
+                                            {{ variation_form.real_name }}
+                                            {% if variation_form.real_name.errors %}
+                                            <div class="text-danger small mt-1">{{ variation_form.real_name.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-md-2 mb-2">
+                                            <label class="form-label">Номер лоту</label>
+                                            {{ variation_form.lot_number }}
+                                            {% if variation_form.lot_number.errors %}
+                                            <div class="text-danger small mt-1">{{ variation_form.lot_number.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-md-2 mb-2">
+                                            <label class="form-label">Тип упаковки</label>
+                                            {{ variation_form.package_type }}
+                                            {% if variation_form.package_type.errors %}
+                                            <div class="text-danger small mt-1">{{ variation_form.package_type.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-md-2 mb-2">
+                                            <label class="form-label">Одиниця виміру</label>
+                                            {{ variation_form.measurement_unit }}
+                                            {% if variation_form.measurement_unit.errors %}
+                                            <div class="text-danger small mt-1">{{ variation_form.measurement_unit.errors }}</div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-md-2 mb-2 d-flex align-items-end">
+                                            <button type="button" class="btn btn-sm btn-danger remove-variation">
                                                 <i class="fas fa-trash"></i> Видалити
                                             </button>
                                         </div>
-                                        <div style="display: none;">
-                                            {{ img_form.image }}
-                                            {{ img_form.id }}
-                                            {{ img_form.DELETE }}
+                                    </div>
+                                    <div style="display: none;">
+                                        {{ variation_form.id }}
+                                        {{ variation_form.DELETE }}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            
+                            <!-- Шаблон для нової варіації -->
+                            <div id="empty-variation-form" style="display: none;">
+                                <div class="variation-item mb-3 border-bottom pb-3">
+                                    <div class="row">
+                                        <div class="col-md-2 mb-2">
+                                            <label class="form-label">Назва</label>
+                                            <input type="text" name="variations-__prefix__-real_name" id="id_variations-__prefix__-real_name" class="form-control">
+                                        </div>
+                                        <div class="col-md-2 mb-2">
+                                            <label class="form-label">Номер лоту</label>
+                                            <input type="text" name="variations-__prefix__-lot_number" id="id_variations-__prefix__-lot_number" class="form-control">
+                                        </div>
+                                        <div class="col-md-2 mb-2">
+                                            <label class="form-label">Тип упаковки</label>
+                                            <select name="variations-__prefix__-package_type" id="id_variations-__prefix__-package_type" class="form-select">
+                                                <option value="">---------</option>
+                                                {% for package_type in package_types %}
+                                                <option value="{{ package_type.id }}">{{ package_type.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2 mb-2">
+                                            <label class="form-label">Одиниця виміру</label>
+                                            <select name="variations-__prefix__-measurement_unit" id="id_variations-__prefix__-measurement_unit" class="form-select">
+                                                <option value="">---------</option>
+                                                {% for measurement_unit in measurement_units %}
+                                                <option value="{{ measurement_unit.id }}">{{ measurement_unit.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2 mb-2 d-flex align-items-end">
+                                            <button type="button" class="btn btn-sm btn-danger remove-variation">
+                                                <i class="fas fa-trash"></i> Видалити
+                                            </button>
                                         </div>
                                     </div>
-                                    {% endif %}
-                                    {% endfor %}
+                                    <div style="display: none;">
+                                        <input type="hidden" name="variations-__prefix__-id" id="id_variations-__prefix__-id">
+                                        <input type="checkbox" name="variations-__prefix__-DELETE" id="id_variations-__prefix__-DELETE" style="display: none;">
+                                    </div>
                                 </div>
-                                
-                                <button type="button" id="add-image" class="btn btn-outline-primary mt-3">
-                                    <i class="fas fa-plus"></i> Додати зображення
-                                </button>
                             </div>
+                            
+                            <button type="button" id="add-variation" class="btn btn-outline-primary mt-2">
+                                <i class="fas fa-plus"></i> Додати варіацію
+                            </button>
                         </div>
                     </div>
-                    
-                    <!-- Кнопки -->
-                    <div class="d-flex justify-content-between mt-4">
-                        <a href="{% url 'product_list' %}" class="btn btn-outline-secondary">
-                            <i class="fas fa-arrow-left me-1"></i> Повернутися до списку
-                        </a>
-                        <button type="submit" class="btn btn-success">
-                            <i class="fas fa-save me-1"></i> Зберегти товар
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-4">
-        <!-- Підказки -->
-        <div class="card shadow-sm border mb-4">
-            <div class="card-header bg-white">
-                <h5 class="card-title mb-0">Підказки</h5>
-            </div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <h6><i class="fas fa-info-circle me-1 text-primary"></i> Про товари</h6>
-                    <p class="small text-muted">Заповніть усі поля, щоб додати новий товар до бази даних. Обов'язкові поля позначені зірочкою (*).</p>
-                </div>
-                <div class="mb-3">
-                    <h6><i class="fas fa-tag me-1 text-primary"></i> Культура</h6>
-                    <p class="small text-muted">Культури допомагають організувати товари та полегшують пошук.</p>
-                </div>
-                <div>
-                    <h6><i class="fas fa-image me-1 text-primary"></i> Зображення</h6>
-                    <p class="small text-muted">Додайте якісне зображення товару для кращої презентації.</p>
                 </div>
             </div>
         </div>
-    </div>
+        
+        <!-- Кнопки -->
+        <div class="d-flex justify-content-between mt-4">
+            <a href="{% url 'product_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Повернутися до списку
+            </a>
+            <button type="submit" class="btn btn-success">
+                <i class="fas fa-save me-1"></i> Зберегти товар
+            </button>
+        </div>
+    </form>
 </div>
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const addImageBtn = document.getElementById('add-image');
+        // Ініціалізація змінних
+        const productForm = document.getElementById('productForm');
+        const hasVariationsCheckbox = document.getElementById('has_variations');
+        const variationsContainer = document.getElementById('variations-container');
+        const variationsList = document.getElementById('variations-list');
+        const addVariationBtn = document.getElementById('add-variation');
         const imageContainer = document.getElementById('image-container');
+        const addImageBtn = document.getElementById('add-image');
+        const emptyImageForm = document.getElementById('empty-image-form');
+        const emptyVariationForm = document.getElementById('empty-variation-form');
         
-        // Отримуємо поля управління формсетом
-        const totalFormsInput = document.querySelector('[name="images-TOTAL_FORMS"]');
-        const initialFormsInput = document.querySelector('[name="images-INITIAL_FORMS"]');
-        const maxFormsInput = document.querySelector('[name="images-MAX_NUM_FORMS"]');
+        // Формсет зображень
+        const imgTotalForms = document.querySelector('[name="images-TOTAL_FORMS"]');
+        const imgInitialForms = document.querySelector('[name="images-INITIAL_FORMS"]');
+        const imgMaxForms = document.querySelector('[name="images-MAX_NUM_FORMS"]');
         
-        if (!totalFormsInput || !initialFormsInput || !maxFormsInput) {
-            console.error('Не знайдено поля управління формсетом');
-            return;
+        // Формсет варіацій
+        const varTotalForms = document.querySelector('[name="variations-TOTAL_FORMS"]');
+        const varInitialForms = document.querySelector('[name="variations-INITIAL_FORMS"]');
+        const varMaxForms = document.querySelector('[name="variations-MAX_NUM_FORMS"]');
+        
+        // Показуємо/приховуємо блок варіацій при зміні чекбоксу
+        hasVariationsCheckbox.addEventListener('change', function() {
+            variationsContainer.style.display = this.checked ? 'block' : 'none';
+        });
+        
+        // Перевірка наявності варіацій та встановлення чекбоксу
+        console.log('Кількість варіацій (TOTAL_FORMS):', varTotalForms.value);
+        console.log('Початкова кількість (INITIAL_FORMS):', varInitialForms.value);
+        
+        if (parseInt(varTotalForms.value) > 0) {
+            hasVariationsCheckbox.checked = true;
+            variationsContainer.style.display = 'block';
+        } else {
+            variationsContainer.style.display = hasVariationsCheckbox.checked ? 'block' : 'none';
         }
-        
-        // Оновлюємо лічильник форм на основі фактичної кількості елементів
-        const updateFormCount = function() {
-            const formCount = imageContainer.querySelectorAll('.image-item').length;
-            totalFormsInput.value = formCount;
-            console.log('Оновлено лічильник форм:', formCount);
-        };
-        
-        // Викликаємо оновлення лічильника при завантаженні сторінки
-        updateFormCount();
         
         // Додавання нового поля для зображення
         addImageBtn.addEventListener('click', function() {
-            const formCount = parseInt(totalFormsInput.value);
-            const maxForms = parseInt(maxFormsInput.value || 10);
+            const formCount = parseInt(imgTotalForms.value);
+            const maxForms = parseInt(imgMaxForms.value || 5);
             
             if (formCount >= maxForms) {
                 alert('Досягнуто максимальної кількості зображень');
@@ -170,22 +301,24 @@
                 if (this.files && this.files[0]) {
                     // Створюємо новий контейнер для зображення
                     const newFormContainer = document.createElement('div');
-                    newFormContainer.className = 'col-md-3 mb-3 image-item';
+                    newFormContainer.className = 'col-md-6 col-lg-4 mb-3 image-item';
                     newFormContainer.dataset.index = formCount;
                     
                     // Створюємо контейнер для зображення
                     const imageForm = document.createElement('div');
                     imageForm.className = 'image-form';
-                    imageForm.style.width = '150px';
-                    imageForm.style.height = '150px';
+                    imageForm.style.width = '100%';
+                    imageForm.style.height = '120px';
                     imageForm.style.display = 'block';
+                    imageForm.style.textAlign = 'center';
                     
                     // Додаємо зображення з попереднім переглядом
                     const img = document.createElement('img');
                     img.alt = 'Попередній перегляд';
                     img.className = 'img-thumbnail';
-                    img.style.maxWidth = '100%';
-                    img.style.maxHeight = '100%';
+                    img.style.maxHeight = '90px';
+                    img.style.maxWidth = '90%';
+                    img.style.objectFit = 'contain';
                     
                     // Читаємо файл для попереднього перегляду
                     const reader = new FileReader();
@@ -203,9 +336,9 @@
                     removeBtn.innerHTML = '<i class="fas fa-trash"></i> Видалити';
                     imageForm.appendChild(removeBtn);
                     
-                    // Створюємо приховані поля форми
-                    const hiddenFields = document.createElement('div');
-                    hiddenFields.style.display = 'none';
+                    // Створюємо форму для файлу
+                    const formGroup = document.createElement('div');
+                    formGroup.className = 'form-group';
                     
                     // Створюємо поле для завантаження файлу
                     const formFileInput = document.createElement('input');
@@ -219,7 +352,15 @@
                     dataTransfer.items.add(this.files[0]);
                     formFileInput.files = dataTransfer.files;
                     
-                    hiddenFields.appendChild(formFileInput);
+                    // Приховуємо файловий інпут, але залишаємо його у формі
+                    formFileInput.style.position = 'absolute';
+                    formFileInput.style.left = '-9999px';
+                    
+                    formGroup.appendChild(formFileInput);
+                    
+                    // Додаємо приховані поля
+                    const hiddenFields = document.createElement('div');
+                    hiddenFields.style.display = 'none';
                     
                     // Додаємо приховане поле id
                     const idInput = document.createElement('input');
@@ -238,13 +379,14 @@
                     
                     // Додаємо всі елементи до контейнера
                     newFormContainer.appendChild(imageForm);
+                    newFormContainer.appendChild(formGroup);
                     newFormContainer.appendChild(hiddenFields);
                     
                     // Додаємо новий контейнер до формсету
                     imageContainer.appendChild(newFormContainer);
                     
                     // Оновлюємо лічильник форм
-                    updateFormCount();
+                    imgTotalForms.value = parseInt(imgTotalForms.value) + 1;
                     
                     // Видаляємо тимчасовий файловий інпут
                     document.body.removeChild(fileInput);
@@ -252,25 +394,109 @@
             });
         });
         
-        // Видалення поля для зображення
+        // Видалення зображення
         imageContainer.addEventListener('click', function(e) {
             if (e.target.classList.contains('remove-image') || e.target.closest('.remove-image')) {
                 const buttonElement = e.target.classList.contains('remove-image') ? e.target : e.target.closest('.remove-image');
                 const imageFormContainer = buttonElement.closest('.image-item');
                 const deleteField = imageFormContainer.querySelector('input[name$="-DELETE"]');
-                const idField = imageFormContainer.querySelector('input[name$="-id"]');
                 
-                if (idField && idField.value) {
-                    // Якщо це існуюче зображення, позначаємо його для видалення
+                if (deleteField) {
+                    // Позначаємо для видалення
                     deleteField.checked = true;
                     imageFormContainer.style.display = 'none';
-                    console.log('Зображення позначено для видалення:', deleteField.name);
+                    
+                    // Додаємо клас для відстеження видалених елементів
+                    imageFormContainer.classList.add('marked-for-deletion');
                 } else {
-                    // Якщо це нове зображення, просто видаляємо форму
+                    // Просто видаляємо з DOM для нових зображень
                     imageFormContainer.remove();
-                    updateFormCount();
-                    console.log('Нове зображення видалено');
+                    
+                    // Перенумеровуємо форми після видалення
+                    updateImageFormIndices();
                 }
+            }
+        });
+        
+        // Функція для перенумерації індексів форм зображень
+        function updateImageFormIndices() {
+            const imageForms = imageContainer.querySelectorAll('.image-item:not(.marked-for-deletion)');
+            let formIndex = 0;
+            
+            imageForms.forEach((form, index) => {
+                // Оновлюємо атрибути name та id для всіх полів форми
+                const inputs = form.querySelectorAll('input');
+                inputs.forEach(input => {
+                    const oldName = input.name;
+                    const fieldName = oldName.match(/-([^-]+)$/)[1];
+                    input.name = `images-${formIndex}-${fieldName}`;
+                    input.id = `id_images-${formIndex}-${fieldName}`;
+                });
+                
+                // Оновлюємо data-index
+                form.dataset.index = formIndex;
+                formIndex++;
+            });
+            
+            // Оновлюємо загальну кількість форм
+            imgTotalForms.value = formIndex;
+        }
+        
+        // Додавання нової варіації
+        addVariationBtn.addEventListener('click', function() {
+            const formCount = parseInt(varTotalForms.value);
+            const maxForms = parseInt(varMaxForms.value || 10);
+            
+            if (formCount >= maxForms) {
+                alert('Досягнуто максимальної кількості варіацій');
+                return;
+            }
+            
+            // Клонуємо шаблон
+            const newFormHtml = emptyVariationForm.innerHTML.replace(/__prefix__/g, formCount);
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = newFormHtml;
+            
+            // Додаємо новий елемент до контейнера
+            variationsList.appendChild(tempDiv.firstElementChild);
+            
+            // Оновлюємо лічильник форм
+            varTotalForms.value = formCount + 1;
+        });
+        
+        // Видалення варіації
+        variationsList.addEventListener('click', function(e) {
+            if (e.target.classList.contains('remove-variation') || e.target.closest('.remove-variation')) {
+                const buttonElement = e.target.classList.contains('remove-variation') ? e.target : e.target.closest('.remove-variation');
+                const variationContainer = buttonElement.closest('.variation-item');
+                const deleteField = variationContainer.querySelector('input[name$="-DELETE"]');
+                
+                if (deleteField) {
+                    // Позначаємо для видалення
+                    deleteField.checked = true;
+                    variationContainer.style.display = 'none';
+                } else {
+                    // Просто видаляємо з DOM
+                    variationContainer.remove();
+                }
+            }
+        });
+        
+        // Перед відправкою форми
+        productForm.addEventListener('submit', function(e) {
+            // Переконуємося, що всі позначені для видалення елементи мають відмічені чекбокси DELETE
+            document.querySelectorAll('.image-item.marked-for-deletion').forEach(item => {
+                const deleteCheckbox = item.querySelector('input[name$="-DELETE"]');
+                if (deleteCheckbox) {
+                    deleteCheckbox.checked = true;
+                }
+            });
+            
+            // Якщо варіації не використовуються, позначаємо всі для видалення
+            if (!hasVariationsCheckbox.checked) {
+                document.querySelectorAll('.variation-item input[name$="-DELETE"]').forEach(input => {
+                    input.checked = true;
+                });
             }
         });
     });

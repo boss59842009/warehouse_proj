@@ -3,8 +3,8 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.contrib import messages
-from ..models import Product, Culture, ProductImage, ProductVariation
-from ..forms import ProductForm, ProductImageFormSet, ProductFilterForm
+from ..models import Product, Culture, ProductImage, ProductVariation, PackageType, MeasurementUnit         
+from ..forms import ProductForm, ProductImageFormSet, ProductVariationFormSet, ProductFilterForm
 
 @login_required
 def product_list(request):
@@ -54,7 +54,7 @@ def product_detail(request, pk):
     ).exclude(id=product.id)[:4]
 
     # Get all variations of the product
-    variations = ProductVariation.objects.filter(parent_product=product)
+    variations = ProductVariation.objects.filter(parent_product=product).order_by('id')
     # Paginate results
     paginator = Paginator(variations, 10)  # Show 10 products per page
     page_number = request.GET.get('page')
@@ -72,34 +72,79 @@ def product_create(request):
     """View to create a new product."""
     if request.method == 'POST':
         form = ProductForm(request.POST, request.FILES)
-        formset = ProductImageFormSet(request.POST, request.FILES, instance=None, prefix='images')
+        print(request.FILES)
         
-        if form.is_valid() and formset.is_valid():
-            # Спочатку зберігаємо товар
+        # Ініціалізуємо формсети з правильними префіксами
+        formset = ProductImageFormSet(request.POST, request.FILES, prefix='images')
+        variations_formset = ProductVariationFormSet(request.POST, prefix='variations')
+        
+        has_variations = request.POST.get('has_variations') == 'on'
+        
+        if form.is_valid() and formset.is_valid() and (not has_variations or variations_formset.is_valid()):
+            # Зберігаємо товар
             product = form.save()
             
-            # Прив'язуємо формсет до створеного товару
-            formset.instance = product
-            
-            # Зберігаємо зображення
+            # Зберігаємо зображення з формсету
             image_instances = formset.save(commit=False)
             for image in image_instances:
-                image.product = product  # Явно встановлюємо зв'язок
+                image.product = product
                 image.save()
             
             # Видаляємо позначені для видалення зображення
             for obj in formset.deleted_objects:
                 obj.delete()
             
-            messages.success(request, f'Товар "{product.name}" успішно створено.')
+            # Обробка динамічно доданих зображень
+            for key, value in request.FILES.items():
+                if key.startswith('images-') and key.endswith('-image'):
+                    # Перевіряємо, чи це зображення не входить у формсет
+                    form_index = key.split('-')[1]
+                    if not any(img.id for img in image_instances if f'images-{form_index}-' in key):
+                        # Створюємо нове зображення
+                        new_image = ProductImage(product=product, image=value)
+                        new_image.save()
+            
+            # Зберігаємо варіації, якщо вони є
+            if has_variations:
+                variation_instances = variations_formset.save(commit=False)
+                for variation in variation_instances:
+                    variation.parent_product = product
+                    variation.culture = product.culture
+                    variation.save()
+                
+                # Видаляємо позначені для видалення варіації
+                for obj in variations_formset.deleted_objects:
+                    obj.delete()
+            
+            messages.success(request, f'Товар "{product.real_name}" успішно створено.')
             return redirect('product_detail', pk=product.pk)
+        else:
+            print(form.errors)
+            print(formset.errors)
+            print(variations_formset.errors)
     else:
         form = ProductForm()
         formset = ProductImageFormSet(prefix='images')
+        variations_formset = ProductVariationFormSet(prefix='variations')
     
+    # Отримуємо всі типи упаковок
+    package_types = PackageType.objects.all()
+    measurement_units = MeasurementUnit.objects.all()
+
+    # Передаємо queryset для поля package_type у порожній формі
+    variations_formset.empty_form.fields['package_type'].queryset = package_types
+    variations_formset.empty_form.fields['measurement_unit'].queryset = measurement_units
+    # Також для всіх форм у формсеті
+    for form in variations_formset.forms:
+        form.fields['package_type'].queryset = package_types
+        form.fields['measurement_unit'].queryset = measurement_units
+
     context = {
         'form': form,
         'formset': formset,
+        'variations_formset': variations_formset,
+        'package_types': package_types,
+        'measurement_units': measurement_units,
         'title': 'Створення нового товару',
     }
     
@@ -112,22 +157,95 @@ def product_update(request, pk):
     
     if request.method == 'POST':
         form = ProductForm(request.POST, request.FILES, instance=product)
+        print(request.FILES)
+        # Ініціалізуємо формсети з правильними префіксами
         formset = ProductImageFormSet(request.POST, request.FILES, instance=product, prefix='images')
+        variations_formset = ProductVariationFormSet(request.POST, instance=product, prefix='variations')
+
         
-        if form.is_valid() and formset.is_valid():
+        has_variations = request.POST.get('has_variations') == 'on'
+        
+        if form.is_valid() and formset.is_valid() and (not has_variations or variations_formset.is_valid()):
+            # Зберігаємо товар
             product = form.save()
-            # Зберігаємо формсет
-            formset.save()
+            
+            # Явно видаляємо зображення, позначені для видалення
+            for form_item in formset:
+                if form_item.cleaned_data and form_item.cleaned_data.get('DELETE', False):
+                    if form_item.instance and form_item.instance.pk:
+                        print(f"Видаляємо зображення з ID: {form_item.instance.pk}")
+                        form_item.instance.image.delete(save=False)  # Видаляємо файл
+                        form_item.instance.delete()  # Видаляємо запис з БД
+            
+            # Зберігаємо зображення з формсету
+            image_instances = formset.save(commit=False)
+            for image in image_instances:
+                image.product = product
+                image.save()
+            
+            # Обробка динамічно доданих зображень
+            for key, value in request.FILES.items():
+                if key.startswith('images-') and key.endswith('-image'):
+                    # Перевіряємо, чи це зображення не входить у формсет
+                    form_index = key.split('-')[1]
+                    if not any(img.id for img in image_instances if f'images-{form_index}-' in key):
+                        # Створюємо нове зображення
+                        new_image = ProductImage(product=product, image=value)
+                        new_image.save()
+            
+            # Зберігаємо варіації, якщо вони є
+            if has_variations:
+                # Перевіряємо, які варіації позначені для видалення
+                for form_item in variations_formset:
+                    if form_item.cleaned_data and form_item.cleaned_data.get('DELETE', False):
+                        if form_item.instance and form_item.instance.pk:
+                            form_item.instance.delete()
+                
+                variation_instances = variations_formset.save(commit=False)
+                print(variation_instances)
+                for variation in variation_instances:
+                    variation.parent_product = product
+                    variation.culture = product.culture
+                    print(variation.culture)
+                    variation.save()
+            else:
+                # Якщо варіації не використовуються, видаляємо всі існуючі
+                ProductVariation.objects.filter(parent_product=product).delete()
+            
             messages.success(request, f'Товар "{product.real_name}" успішно оновлено.')
             return redirect('product_detail', pk=product.pk)
+        else:
+            print(form.errors)
+            print(formset.errors)
+            print(variations_formset.errors)
     else:
         form = ProductForm(instance=product)
         formset = ProductImageFormSet(instance=product, prefix='images')
+        variations_formset = ProductVariationFormSet(instance=product, prefix='variations')
+        # Встановлюємо чекбокс, якщо є варіації
+        has_variations = ProductVariation.objects.filter(parent_product=product).exists()
     
+    # Отримуємо всі типи упаковок
+    package_types = PackageType.objects.all()
+    measurement_units = MeasurementUnit.objects.all()
+
+    # Передаємо queryset для поля package_type у порожній формі
+    variations_formset.empty_form.fields['package_type'].queryset = package_types
+    variations_formset.empty_form.fields['measurement_unit'].queryset = measurement_units
+    # Також для всіх форм у формсеті
+
+    for variation_form in variations_formset.forms:
+        variation_form.fields['package_type'].queryset = package_types
+        variation_form.fields['measurement_unit'].queryset = measurement_units
+    print(variations_formset)
     context = {
         'form': form,
         'formset': formset,
+        'variations_formset': variations_formset,
         'product': product,
+        'has_variations': has_variations,
+        'package_types': package_types,
+        'measurement_units': measurement_units,
         'title': f'Редагування товару: {product.real_name}',
     }
     

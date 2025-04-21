@@ -9,11 +9,8 @@
 <div class="row mb-3">
     <div class="col-md-6">
         <div class="d-flex">
-            <a href="{% url 'inventory_list' %}" class="btn btn-outline-secondary btn-sm me-2">
-                <i class="fas fa-arrow-left me-1"></i> До списку інвентаризацій
-            </a>
-            <a href="{% url 'bulk_inventory' %}" class="btn btn-outline-primary btn-sm">
-                <i class="fas fa-layer-group me-1"></i> Групова інвентаризація
+            <a href="{% url 'cuantity_list' %}" class="btn btn-outline-secondary btn-sm me-2">
+                <i class="fas fa-arrow-left me-1"></i> До залишків
             </a>
         </div>
     </div>
@@ -28,14 +25,6 @@
             <div class="card-body">
                 <form method="get" id="reportForm">
                     <div class="row align-items-end">
-                        <div class="col-md-4 mb-3 mb-md-0">
-                            <label for="{{ form.category.id_for_label }}" class="form-label">Категорія</label>
-                            {{ form.category }}
-                            {% if form.category.errors %}
-                            <div class="text-danger small mt-1">{{ form.category.errors }}</div>
-                            {% endif %}
-                            <div class="form-text">Залиште порожнім для всіх категорій</div>
-                        </div>
                         <div class="col-md-2 mb-3 mb-md-0">
                             <label class="form-label">Формат</label>
                             <div class="mt-1">
@@ -45,15 +34,11 @@
                                     <label class="form-check-label" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
                                 </div>
                                 {% endfor %}
+                                <button type="submit" name="generate" value="1" class="btn btn-primary btn-sm me-2">
+                                    <i class="fas fa-download me-1"></i> Згенерувати звіт
+                                </button>
                             </div>
-                        </div>
-                        <div class="col-md-6 text-md-end">
-                            <button type="submit" name="generate" value="1" class="btn btn-primary btn-sm me-2">
-                                <i class="fas fa-download me-1"></i> Згенерувати звіт
-                            </button>
-                            <button type="submit" class="btn btn-outline-secondary btn-sm">
-                                <i class="fas fa-search me-1"></i> Переглянути
-                            </button>
+
                         </div>
                     </div>
                 </form>
@@ -67,27 +52,29 @@
         <div class="card shadow-sm border mb-4">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">Результати звіту</h5>
-                <span class="badge bg-primary">{{ total_products }} товарів</span>
             </div>
             
             <!-- Фільтри -->
             <div class="product-filters px-3 pt-2 pb-1 border-bottom bg-light">
                 <div class="d-flex flex-wrap align-items-center">
                     <div class="filter-label me-2 my-1 fw-medium">Фільтри:</div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="culture">
+                        Культура
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="real_name">
+                        Назва справжня
+                    </button>
                     <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="name">
-                        Назва товару
+                        Назва
                     </button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="category">
-                        Категорія
+                    <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="lot_number">
+                        Номер лоту
                     </button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="quantity">
-                        Кількість
+                    <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="measurement_unit">
+                        Од. виміру
                     </button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="price">
-                        Ціна
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="value">
-                        Вартість
+                    <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="package_type">
+                        Тип упаковки
                     </button>
                 </div>
             </div>
@@ -97,105 +84,56 @@
                     <table class="table table-hover mb-0" id="stockTable">
                         <thead class="bg-light">
                             <tr>
-                                <th>#</th>
-                                <th>Товар</th>
-                                <th>Категорія</th>
-                                <th>Кількість</th>
-                                <th>Ціна за одиницю</th>
-                                <th>Загальна вартість</th>
-                                <th>Статус</th>
-                                <th>Дії</th>
+                                <th scope="col" style="width: 100px;">Фото</th>
+                                <th scope="col" style="width: 150px;">Культура</th>
+                                <th scope="col" style="width: 200px;">Назва справжня</th>
+                                <th scope="col"style="width: 150px;">Назва</th>
+                                <th scope="col" style="width: 150px;">Номер лоту</th>
+                                <th scope="col" style="width: 150px;">Од. виміру</th>
+                                <th scope="col" style="width: 150px;">Тип упаковки</th>
+                                <th scope="col" style="width: 150px;">Кількість упаковок</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for product in page_obj %}
+                            {% for variation in variations %}
                             <tr>
-                                <td>{{ product.id }}</td>
                                 <td>
-                                    <div class="d-flex align-items-center">
-                                        {% if product.image %}
-                                        <img src="{{ product.image.url }}" alt="{{ product.name }}" class="me-2" 
-                                             style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">
-                                        {% else %}
-                                        <img src="/static/img/no-image.png" alt="No Image" class="me-2" 
-                                             style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">
-                                        {% endif %}
-                                        <div>
-                                            <div class="fw-medium">{{ product.name }}</div>
-                                            <div class="text-muted small">
-                                                {% if product.code %}Код: {{ product.code }}{% endif %}
-                                                {% if product.lot_number %} | Лот: {{ product.lot_number }}{% endif %}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>{{ product.category.name }}</td>
-                                <td>
-                                    <span class="fw-medium">{{ product.quantity }}</span> 
-                                    <span class="text-muted small">{{ product.measurement_unit.name }}</span>
-                                </td>
-                                <td>{{ product.price }} грн</td>
-                                <td>{{ product.quantity|multiply:product.price|floatformat:2 }} грн</td>
-                                <td>
-                                    {% if product.is_available %}
-                                    <span class="badge bg-success">Доступний</span>
+                                    {% if variation.parent_product.productimage_set.exists %}
+                                        <img src="{{ variation.parent_product.productimage_set.first.image.url }}" alt="{{ variation.name }}" class="img-thumbnail" style="max-height: 80px;">
                                     {% else %}
-                                    <span class="badge bg-danger">Недоступний</span>
+                                        <div class="text-center text-muted"><i class="fas fa-image fa-2x"></i></div>
                                     {% endif %}
                                 </td>
-                                <td>
-                                    <div class="btn-group">
-                                        <a href="{% url 'product_detail' pk=product.id %}" class="btn btn-sm btn-outline-primary py-1 px-2">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        <a href="{% url 'product_inventory' product_id=product.id %}" class="btn btn-sm btn-outline-secondary py-1 px-2">
-                                            <i class="fas fa-clipboard-check"></i>
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="8" class="text-center py-4">
-                                    <div class="text-muted">
-                                        <i class="fas fa-box-open fa-2x mb-3"></i>
-                                        <p>Товарів для звіту не знайдено.</p>
-                                    </div>
-                                </td>
+                                <td>{{ variation.parent_product.culture.name }}</td>
+                                <td>{{ variation.real_name }}</td>
+                                <td>{{ variation.name }}</td>
+                                <td>{{ variation.lot_number }}</td>
+                                <td>{{ variation.measurement_unit.name }}</td>
+                                <td>{{ variation.package_type.name }}</td>
+                                <td>{{ variation.packages_count }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
             </div>
-            
-            <div class="card-footer bg-white">
-                <div class="row align-items-center">
-                    <div class="col-md-4">
-                        <div class="d-flex align-items-center">
-                            <div class="text-primary me-3">
-                                <i class="fas fa-layer-group fa-2x"></i>
-                            </div>
-                            <div>
-                                <div class="text-muted small">Загальна вартість запасів:</div>
-                                <div class="fs-5 fw-bold">{{ total_value|floatformat:2 }} грн</div>
-                            </div>
+        </div>
+        <div class="col-md-12">
+            <div class="card shadow-sm border mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Оцінка складу</h5>
+                    <span class="badge bg-primary">{{ total_products }} товарів</span>
+                </div>
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-4 text-center">
+                            <div class="d-flex align-items-center justify-content-center">
+                        <div class="text-primary me-3">
+                            <i class="fas fa-cubes fa-2x"></i>
                         </div>
-                    </div>
-                    <div class="col-md-4 text-center">
-                        <div class="d-flex align-items-center justify-content-center">
-                            <div class="text-primary me-3">
-                                <i class="fas fa-cubes fa-2x"></i>
-                            </div>
-                            <div>
-                                <div class="text-muted small">Загальна кількість товарів:</div>
-                                <div class="fs-5 fw-bold">{{ total_quantity }}</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4 text-end">
-                        <div class="text-muted small">
-                            Звіт згенеровано: {{ now|date:"d.m.Y H:i:s" }}
+                        <div>
+                            <div class="text-muted small">Загальна кількість товарів:</div>
+                            <div class="fs-5 fw-bold">{{ total_products }}</div>
                         </div>
                     </div>
                 </div>
@@ -296,11 +234,12 @@
         // Проста функція для сортування таблиці
         function sortTable(table, column) {
             const columnMap = {
-                'name': 1,
-                'category': 2,
-                'quantity': 3,
-                'price': 4,
-                'value': 5
+                'culture': 1,
+                'real_name': 2,
+                'name': 3,
+                'lot_number': 4,
+                'measurement_unit': 5,
+                'package_type': 6
             };
             
             const columnIndex = columnMap[column];

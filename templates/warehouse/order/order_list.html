@@ -24,7 +24,6 @@
                     <label for="status" class="form-label">Статус</label>
                     <select name="status" id="status" class="form-select">
                         <option value="">Всі статуси</option>
-                        <option value="accepted" {% if request.GET.status == 'accepted' %}selected{% endif %}>Прийнято</option>
                         <option value="successful" {% if request.GET.status == 'successful' %}selected{% endif %}>Успішно</option>
                         <option value="canceled" {% if request.GET.status == 'canceled' %}selected{% endif %}>Скасовано</option>
                     </select>
@@ -63,8 +62,7 @@
                     <tr>
                         <th scope="col" style="width: 100px;">№</th>
                         <th scope="col" style="width: 150px;">Дата замовлення</th>
-                        <th scope="col" style="width: 150px;">Загалльна к-сть товарів</th>
-                        <th scope="col" style="width: 150px;">Загальна сума</th>
+                        <th scope="col" style="width: 150px;">Загальна к-сть товарів</th>
                         <th scope="col" style="width: 150px;">Статус</th>
                         <th scope="col" style="width: 150px;">Дії</th>
                     </tr>
@@ -82,14 +80,10 @@
                                 {{ order.items.count }}
                             </td>
                             <td>
-                                {{ order.total_price|floatformat:2 }} грн.
-                            </td>
-                            <td>
                                 <span class="badge 
-                                    {% if order.status == 'accepted' %}bg-primary
-                                    {% elif order.status == 'successful' %}bg-info text-dark
-                                    {% elif order.status == 'canceled' %}bg-danger
-                                    {% else %}bg-secondary{% endif %}">
+                                    {% if order.status == 'successful' %}bg-success text-white
+                                    {% elif order.status == 'canceled' %}bg-danger text-white
+                                    {% else %}bg-secondary text-white{% endif %}">
                                     {{ order.get_status_display }}
                                 </span>
                             </td>
@@ -98,9 +92,11 @@
                                     <a href="{% url 'order_detail' order.id %}" class="btn btn-outline-primary" title="Переглянути">
                                         <i class="fas fa-eye"></i>
                                     </a>
+                                    {% if order.status == 'successful' %}
                                     <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteOrderModal{{ order.id }}" title="Скасувати">
                                         <i class="fas fa-ban"></i>
                                     </button>
+                                    {% endif %}
                                 </div>
                             </td>
                         </tr>
@@ -117,10 +113,10 @@
                                         <p class="text-danger"><strong>Увага:</strong> Ця дія не може бути скасована.</p>
                                     </div>
                                     <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Відміна</button>
                                         <form method="post" action="{% url 'order_cancel' order.id %}">
                                             {% csrf_token %}
-                                            <button type="submit" class="btn btn-danger">Скасувати</button>
+                                            <button type="submit" class="btn btn-danger">Скасувати замовлення</button>
                                         </form>
                                     </div>
                                 </div>

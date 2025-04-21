@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import (
     PackageType, MeasurementUnit, Culture,
     Product, ProductImage, ProductVariation, ProductVariationImage, Order, OrderItem,
-    Inventory, ProductMovement, BackupSettings, SystemParameter
+    Inventory, ProductIncome, BackupSettings, SystemParameter, ProductInventory, ProductIncomeItem
 )
 
 class ProductImageInline(admin.TabularInline):
@@ -15,16 +15,16 @@ class ProductVariationImageInline(admin.TabularInline):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('name', 'culture', 'quantity', 'price', 'is_available')
+    list_display = ('name', 'real_name', 'culture', 'quantity', 'price', 'is_available')
     list_filter = ('culture', 'is_available')
     search_fields = ('name', 'real_name', 'import_name', 'lot_number')
     inlines = [ProductImageInline]
 
 @admin.register(ProductVariation)
 class ProductVariationAdmin(admin.ModelAdmin):
-    list_display = ('parent_product', 'name', 'quantity', 'price', 'is_available')
+    list_display = ('parent_product', 'real_name', 'quantity', 'price', 'is_available')
     list_filter = ('parent_product', 'is_available')
-    search_fields = ('parent_product__name', 'name', 'import_name', 'lot_number')
+    search_fields = ('parent_product__name', 'real_name', 'import_name', 'lot_number')
     inlines = [ProductVariationImageInline]
 
 class OrderItemInline(admin.TabularInline):
@@ -44,12 +44,6 @@ class InventoryAdmin(admin.ModelAdmin):
     list_filter = ('created_at', 'performed_by')
     search_fields = ('product__name', 'comment')
 
-@admin.register(ProductMovement)
-class ProductMovementAdmin(admin.ModelAdmin):
-    list_display = ('product', 'movement_type', 'quantity', 'date', 'performed_by')
-    list_filter = ('movement_type', 'date', 'performed_by')
-    search_fields = ('product__name', 'document_number', 'comment')
-
 # Register simple models
 admin.site.register(PackageType)
 admin.site.register(MeasurementUnit)
@@ -59,3 +53,6 @@ admin.site.register(SystemParameter)
 admin.site.register(ProductImage)
 admin.site.register(ProductVariationImage)
 admin.site.register(OrderItem)
+admin.site.register(ProductInventory)
+admin.site.register(ProductIncome)
+admin.site.register(ProductIncomeItem)
