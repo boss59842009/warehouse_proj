@@ -2,14 +2,14 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.db import transaction
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from datetime import datetime
 import os
 import zipfile
 import shutil
 import sqlite3
-from ..models import BackupSettings, SystemParameter, Culture, PackageType, MeasurementUnit
-from ..forms import BackupSettingsForm, SystemParameterForm, CultureForm, PackageTypeForm, MeasurementUnitForm
+from ..models import BackupSettings, SystemParam, Culture, PackageType, MeasurementUnit
+from ..forms import BackupSettingsForm, SystemParamForm, CultureForm, PackageTypeForm, MeasurementUnitForm
 
 def is_admin(user):
     """Check if the user is an admin or superuser."""
@@ -28,19 +28,23 @@ def settings_index(request):
         backup_settings = BackupSettings.objects.create()
     
     # Get system parameters
-    system_parameters = SystemParameter.objects.all()
+    system_parameters = SystemParam.objects.all()
     
     # Get reference data counts
     package_types_count = PackageType.objects.count()
     measurement_units_count = MeasurementUnit.objects.count()
     cultures_count = Culture.objects.count()
-    
+    form = SystemParamForm()
+    parameters = SystemParam.objects.all()
+
     context = {
         'backup_settings': backup_settings,
         'system_parameters': system_parameters,
         'package_types_count': package_types_count,
         'measurement_units_count': measurement_units_count,
         'cultures_count': cultures_count,
+        'form': form,
+        'parameters': parameters,
     }
     
     return render(request, 'warehouse/settings/settings_index.html', context)
@@ -161,7 +165,7 @@ def restore_backup(request):
 @user_passes_test(is_admin)
 def system_parameters(request):
     """View to manage system parameters."""
-    parameters = SystemParameter.objects.all()
+    parameters = SystemParam.objects.all()
     
     if request.method == 'POST':
         # Handle parameter update
@@ -184,21 +188,38 @@ def system_parameters(request):
 @user_passes_test(is_admin)
 def add_system_parameter(request):
     """View to add a new system parameter."""
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    
     if request.method == 'POST':
-        form = SystemParameterForm(request.POST)
+        form = SystemParamForm(request.POST)
         
         if form.is_valid():
-            # Check if parameter already exists
-            key = form.cleaned_data['key']
-            if SystemParameter.objects.filter(key=key).exists():
-                messages.error(request, f'Параметр з ключем "{key}" вже існує.')
-                return render(request, 'warehouse/settings/parameter_form.html', {'form': form})
-            
-            form.save()
-            messages.success(request, f'Параметр "{key}" успішно додано.')
-            return redirect('system_parameters')
+            try:
+                parameter = form.save()
+                messages.success(request, f'Параметр успішно додано.')
+                
+                if is_ajax:
+                    return JsonResponse({
+                        'success': True,
+                        'message': 'Параметр успішно додано.'
+                    })
+                return redirect('settings_index')
+            except Exception as e:
+                if is_ajax:
+                    return JsonResponse({
+                        'success': False,
+                        'errors': {'__all__': [str(e)]}
+                    })
+                messages.error(request, f'Помилка додавання параметра: {str(e)}')
+        else:
+            if is_ajax:
+                return JsonResponse({
+                    'success': False,
+                    'errors': dict(form.errors.items())
+                })
+            # Для звичайного запиту помилки відображаються у формі
     else:
-        form = SystemParameterForm()
+        form = SystemParamForm()
     
     context = {
         'form': form,
@@ -211,22 +232,44 @@ def add_system_parameter(request):
 @user_passes_test(is_admin)
 def edit_system_parameter(request, pk):
     """View to edit a system parameter."""
-    parameter = get_object_or_404(SystemParameter, pk=pk)
+    parameter = get_object_or_404(SystemParam, pk=pk)
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     
     if request.method == 'POST':
-        form = SystemParameterForm(request.POST, instance=parameter)
+        form = SystemParamForm(request.POST, instance=parameter)
         
         if form.is_valid():
-            form.save()
-            messages.success(request, f'Параметр "{parameter.key}" успішно оновлено.')
-            return redirect('system_parameters')
+            try:
+                form.save()
+                messages.success(request, f'Параметр "{parameter.name}" успішно оновлено.')
+                
+                if is_ajax:
+                    return JsonResponse({
+                        'success': True,
+                        'message': f'Параметр "{parameter.name}" успішно оновлено.'
+                    })
+                return redirect('settings_index')
+            except Exception as e:
+                if is_ajax:
+                    return JsonResponse({
+                        'success': False,
+                        'errors': {'__all__': [str(e)]}
+                    })
+                messages.error(request, f'Помилка збереження параметра: {str(e)}')
+        else:
+            if is_ajax:
+                return JsonResponse({
+                    'success': False,
+                    'errors': dict(form.errors.items())
+                })
+            # Для звичайного запиту помилки відображаються у формі
     else:
-        form = SystemParameterForm(instance=parameter)
+        form = SystemParamForm(instance=parameter)
     
     context = {
         'form': form,
         'parameter': parameter,
-        'title': f'Редагувати параметр: {parameter.key}',
+        'title': f'Редагувати параметр: {parameter.name}',
     }
     
     return render(request, 'warehouse/settings/parameter_form.html', context)
@@ -235,20 +278,40 @@ def edit_system_parameter(request, pk):
 @user_passes_test(is_admin)
 def delete_system_parameter(request, pk):
     """View to delete a system parameter."""
-    parameter = get_object_or_404(SystemParameter, pk=pk)
+    parameter = get_object_or_404(SystemParam, pk=pk)
     
-    if request.method == 'POST':
-        key = parameter.key
+    # Обробка GET-запиту - повертає на сторінку налаштувань
+    # де відображається модальне вікно підтвердження
+    if request.method == 'GET':
+        return redirect('settings_index')
+    
+    # Обробка POST-запиту - виконує видалення параметра
+    elif request.method == 'POST':
+        # Зберігаємо назву параметра перед видаленням для повідомлення
+        name = parameter.name
+        
+        # Перевіряємо наявність дочірніх параметрів
+        children = parameter.children.all()
+        if children.exists():
+            # Якщо є дочірні параметри, видаляємо їх також
+            for child in children.all():
+                child_children = child.children.all()
+                if child_children.exists():
+                    child_children.delete()
+                child.delete()
+        print(parameter)
+        # Видаляємо сам параметр
         parameter.delete()
-        messages.success(request, f'Параметр "{key}" успішно видалено.')
-        return redirect('system_parameters')
+        
+        # Додаємо повідомлення про успішне видалення
+        messages.success(request, f'Параметр "{name}" успішно видалено.')
+        
+        # Перенаправляємо на сторінку налаштувань
+        return redirect('settings_index')
+        
+    # Якщо метод не GET і не POST, перенаправляємо на сторінку налаштувань
+    return redirect('settings_index')
     
-    context = {
-        'parameter': parameter,
-    }
-    
-    return render(request, 'warehouse/settings/parameter_confirm_delete.html', context)
-
 @login_required
 @user_passes_test(is_admin)
 def manage_categories(request):

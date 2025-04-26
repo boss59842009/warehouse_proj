@@ -3,27 +3,43 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q
-from ..models import ProductIncome, Product
-from ..forms import InventoryForm, ProductIncomeItemForm, ProductIncomeItemFormSet, ProductIncomeForm
+from ..models import ProductIncome, Product, Culture, ProductVariation
+from ..forms import InventoryForm, ProductFilterForm, ProductIncomeItemForm, ProductIncomeItemFormSet, ProductIncomeForm, ProductIncomeFilterForm
 
 @login_required
 def movement_list(request):
     """View to display a list of all product movements."""
     movements = ProductIncome.objects.all().order_by('-created_at')
+    movement_filter_form = ProductIncomeFilterForm()
+    # if request.method == 'GET':
+    #     movement_filter_form = ProductIncomeFilterForm(request.GET)
+    #     if movement_filter_form.is_valid():
+    #         movements = movements.filter(
+    #             Q(culture__name__icontains=movement_filter_form.cleaned_data['culture']) |
+    #             Q(real_name__icontains=movement_filter_form.cleaned_data['real_name']) |
+    #             Q(name__icontains=movement_filter_form.cleaned_data['name']) |
+    #             Q(lot_number__icontains=movement_filter_form.cleaned_data['lot_number']) |
+    #             Q(measurement_unit__name__icontains=movement_filter_form.cleaned_data['measurement_unit']) |
+    #             Q(package_type__name__icontains=movement_filter_form.cleaned_data['package_type'])
+    #         )
+
     
-    # Filter by movement type if provided
-    movement_type = request.GET.get('type', '')
+     # Filter by status if provided
+    movement_type = request.GET.get('movement_type', '')
     if movement_type:
         movements = movements.filter(movement_type=movement_type)
-    
-    # Filter by product if provided
-    product_id = request.GET.get('product', '')
-    if product_id:
-        try:
-            product = Product.objects.get(pk=int(product_id))
-            movements = movements.filter(product=product)
-        except (Product.DoesNotExist, ValueError):
-            pass
+
+    created_at_from = request.GET.get('created_at_from', '')
+    if created_at_from:
+        movements = movements.filter(created_at__gte=created_at_from)
+    # # Filter by product if provided
+    # product_id = request.GET.get('product', '')
+    # if product_id:
+    #     try:
+    #         product = Product.objects.get(pk=int(product_id))
+    #         movements = movements.filter(product=product)
+    #     except (Product.DoesNotExist, ValueError):
+    #         pass
     
     # # Search by document number or comment
     # search = request.GET.get('search', '')
@@ -45,9 +61,7 @@ def movement_list(request):
     context = {
         'page_obj': page_obj,
         'products': products,
-        'current_type': movement_type,
-        'current_product': product_id,
-        # 'search': search,
+        'movement_filter_form': movement_filter_form,
     }
     
     return render(request, 'warehouse/movement/movement_list.html', context)
@@ -55,38 +69,68 @@ def movement_list(request):
 @login_required
 def product_income_create(request):
     products = Product.objects.all().prefetch_related('variations', 'productimage_set')
+    cultures = Culture.objects.all().order_by('name')
+    
+    # Створюємо формсет
+    formset = ProductIncomeItemFormSet(request.POST or None)
+    
+    # Додаємо атрибути data- до опцій select для product_variation
+    for form in formset:
+        product_variation_field = form.fields['product_variation']
+        for i, choice in enumerate(product_variation_field.widget.choices):
+            if choice[0]:  # Пропускаємо порожній варіант
+                try:
+                    product_variation = ProductVariation.objects.select_related('culture').get(pk=choice[0])
+                    # Додаємо атрибути data- до опції
+                    attrs = {
+                        'data-culture': product_variation.culture.name if product_variation.culture else '',
+                        'data-real-name': product_variation.real_name or '',
+                        'data-name': product_variation.name or ''
+                    }
+                    product_variation_field.widget.choices[i] = (
+                        choice[0],
+                        choice[1],
+                        attrs
+                    )
+                except ProductVariation.DoesNotExist:
+                    pass
     
     if request.method == 'POST':
-        form = ProductIncomeForm(request.POST)
-        formset = ProductIncomeItemFormSet(request.POST)
-        
-        if formset.is_valid() and form.is_valid():
+        if formset.is_valid():
             # Зберігаємо основну форму
-            income = form.save(commit=False)
-            income.performed_by = request.user
-            income.save()
+            income = ProductIncome.objects.create(
+                movement_type = 'incoming',
+                performed_by = request.user
+            )
             
-            # Зберігаємо формсет
-            formset.instance = income
-            formset.save()
+            # Перевіряємо, що всі елементи мають product_variation
+            valid_items = []
+            for form in formset:
+                print(form.cleaned_data)
+                if form.is_valid() and not form.cleaned_data.get('DELETE'):
+                    if form.cleaned_data.get('product_variation'):
+                        valid_items.append(form)
+            
+            # Зберігаємо тільки валідні елементи
+            for form in valid_items:
+                item = form.save(commit=False)
+                item.income = income
+                item.save()
             
             # Оновлюємо загальну кількість та кількість упаковок
             income.total_quantity = sum(item.quantity for item in income.productincomeitem_set.all())
             income.total_packages_count = sum(item.packages_count for item in income.productincomeitem_set.all())
             income.save()
             
-            return redirect('income_list')
-    else:
-        # Створюємо порожні форми
-        form = ProductIncomeForm()
-        formset = ProductIncomeItemFormSet()
+            return redirect('movement_list')
+    
     context = {
-        'form': form,
         'formset': formset,
         'products': products,
+        'cultures': cultures,
     }
+    
     return render(request, 'warehouse/movement/income_create_form.html', context)
-
 # @login_required
 # def inventory_create(request):
 #     """View to create a new inventory."""

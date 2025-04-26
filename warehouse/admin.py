@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import (
     PackageType, MeasurementUnit, Culture,
     Product, ProductImage, ProductVariation, ProductVariationImage, Order, OrderItem,
-    Inventory, ProductIncome, BackupSettings, SystemParameter, ProductInventory, ProductIncomeItem
+    Inventory, InventoryItem, ProductIncome, BackupSettings, SystemParam, ProductInventory, ProductIncomeItem
 )
 
 class ProductImageInline(admin.TabularInline):
@@ -38,18 +38,16 @@ class OrderAdmin(admin.ModelAdmin):
     search_fields = ('user__username', 'comment')
     inlines = [OrderItemInline]
 
-@admin.register(Inventory)
-class InventoryAdmin(admin.ModelAdmin):
-    list_display = ('product', 'quantity_expected', 'quantity_actual', 'difference', 'created_at')
-    list_filter = ('created_at', 'performed_by')
-    search_fields = ('product__name', 'comment')
+admin.site.register(Inventory)
+admin.site.register(InventoryItem)
+
 
 # Register simple models
 admin.site.register(PackageType)
 admin.site.register(MeasurementUnit)
 admin.site.register(Culture)
 admin.site.register(BackupSettings)
-admin.site.register(SystemParameter) 
+admin.site.register(SystemParam) 
 admin.site.register(ProductImage)
 admin.site.register(ProductVariationImage)
 admin.site.register(OrderItem)

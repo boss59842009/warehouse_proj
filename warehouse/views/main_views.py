@@ -1,19 +1,19 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.db.models import Sum, Count, F, Q
-from ..models import Product, Order, Inventory, ProductIncome
+from ..models import Product, Order, Inventory, ProductIncome, ProductVariation
 
 @login_required
 def home(request):
     """Home page view with dashboard statistics."""
     total_products = Product.objects.count()
-    available_products = Product.objects.filter(is_available=True).count()
+    successful_orders = Order.objects.filter(status='completed').count()
+    orders_count = Order.objects.count()
     recent_orders = Order.objects.order_by('-created_at')[:5]
-    pending_orders = Order.objects.filter(status='pending').count()
-    completed_orders = Order.objects.filter(status='completed').count()
+    successful_orders = Order.objects.filter(status='successful').count()
     
     # Get low stock products (less than 5 units)
-    low_stock_products = Product.objects.filter(quantity__lt=5, is_available=True)
+    low_stock_variations_products = ProductVariation.objects.filter(quantity__lt=5, is_available=True)
     
     # Get top 5 products by order count
     top_products = Product.objects.annotate(
@@ -22,11 +22,10 @@ def home(request):
     
     context = {
         'total_products': total_products,
-        'available_products': available_products,
+        'orders_count': orders_count,
+        'successful_orders': successful_orders,
         'recent_orders': recent_orders,
-        'pending_orders': pending_orders,
-        'completed_orders': completed_orders,
-        'low_stock_products': low_stock_products,
+        'low_stock_variations_products': low_stock_variations_products,
         'top_products': top_products,
     }
     

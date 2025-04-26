@@ -4,9 +4,10 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.http import HttpResponseRedirect
 from django.urls import reverse
-from ..models import Order, OrderItem, Product, ProductVariation
-from ..forms import OrderForm, OrderItemFormSet, AddToCartForm, CartItemForm, CheckoutForm
+from ..models import Culture, Order, OrderItem, Product, ProductVariation
+from ..forms import OrderForm, OrderItemFormSet, AddToCartForm, CartItemForm, CheckoutForm, ProductVariationFilterForm
 import json
+from django.db.models import Q
 
 @login_required
 def order_list(request):
@@ -79,11 +80,31 @@ def order_create(request):
         else:
             messages.error(request, 'Не вибрано жодного товару.')
     
-    # Якщо запит не POST або сталася помилка, показуємо форму створення замовлення
-    variations = ProductVariation.objects.filter(quantity__gt=0)
-    
+    if request.method == 'GET':
+        filter_form = ProductVariationFilterForm(request.GET)
+        if filter_form.is_valid():
+            filter_kwargs = {}
+            if filter_form.cleaned_data['culture']:
+                filter_kwargs['parent_product__culture'] = filter_form.cleaned_data['culture']
+            if filter_form.cleaned_data['real_name']:
+                filter_kwargs['real_name__icontains'] = filter_form.cleaned_data['real_name']
+            if filter_form.cleaned_data['name']:
+                filter_kwargs['import_name__icontains'] = filter_form.cleaned_data['name']
+            if filter_form.cleaned_data['lot_number']:
+                filter_kwargs['lot_number__icontains'] = filter_form.cleaned_data['lot_number']
+            if filter_form.cleaned_data['measurement_unit']:
+                filter_kwargs['measurement_unit'] = filter_form.cleaned_data['measurement_unit']
+            if filter_form.cleaned_data['package_type']:
+                filter_kwargs['package_type'] = filter_form.cleaned_data['package_type']
+
+            variations = ProductVariation.objects.filter(**filter_kwargs)
+    else:
+        variations = ProductVariation.objects.filter(quantity__gt=0)
+    cultures = Culture.objects.all()
     context = {
         'variations': variations,
+        'filter_form': filter_form,
+        'cultures': cultures,
     }
     
     return render(request, 'warehouse/order/order_form.html', context)
@@ -225,7 +246,7 @@ def order_complete(request):
         # Створюємо нове замовлення
         order = Order.objects.create(
             user=request.user,
-            status='accepted',  # Статус "очікує обробки"
+            status='successful',  # Статус "очікує обробки"
             comment=comment,
             total_price=0  # Початкова сума, оновимо пізніше
         )

@@ -1,42 +1,25 @@
 {% load warehouse_tags %}
 
-<div class="modal fade" id="addParameterModal" tabindex="-1" aria-labelledby="addParameterModalLabel" aria-hidden="true">
+<div class="modal fade" id="addParameterModal" tabindex="-1" aria-labelledby="parameterModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="addParameterModalLabel">Додавання параметру</h5>
+                <h5 class="modal-title" id="parameterModalLabel">Додавання параметру</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="parameterForm" method="post" action="{% url 'add_system_parameter' %}">
                 {% csrf_token %}
+                <input type="hidden" name="parameter_id" id="parameter_id" value="">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="parameter_type" class="form-label required-field">Тип параметру</label>
-                        <select class="form-select" id="parameter_type" name="parameter_type" required>
-                            <option value="" selected disabled>Оберіть тип параметру</option>
-                            <option value="category">Категорія</option>
-                            <option value="import_name">Назва (імпорт)</option>
-                            <option value="lot">Лот</option>
-                            <option value="package">Упаковка</option>
-                            <option value="unit">Одиниця виміру</option>
-                        </select>
-                        <div class="invalid-feedback">Будь ласка, оберіть тип параметру</div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="parameter_name" class="form-label required-field">Назва параметру</label>
-                        <input type="text" class="form-control" id="parameter_name" name="name" required>
+                        <label for="{{ form.name.id_for_label }}" class="form-label required-field">Назва параметру</label>
+                        {{ form.name }}
                         <div class="invalid-feedback">Будь ласка, введіть назву параметру</div>
                     </div>
                     
                     <div class="mb-3">
-                        <label for="parameter_description" class="form-label">Опис</label>
-                        <textarea class="form-control" id="parameter_description" name="description" rows="3"></textarea>
-                    </div>
-                    
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" id="parameter_active" name="is_active" checked>
-                        <label class="form-check-label" for="parameter_active">Активний</label>
+                        <label for="{{ form.parameter.id_for_label }}" class="form-label">Батьківський параметр</label>
+                        {{ form.parameter }}
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -52,21 +35,144 @@
     document.addEventListener('DOMContentLoaded', function() {
         // Form validation
         const form = document.getElementById('parameterForm');
+        const modal = document.getElementById('addParameterModal');
+        const modalTitle = document.getElementById('parameterModalLabel');
         
         form.addEventListener('submit', function(event) {
-            if (!form.checkValidity()) {
-                event.preventDefault();
-                event.stopPropagation();
-            }
+            event.preventDefault(); // Запобігає стандартній відправці форми
             
-            form.classList.add('was-validated');
+            // Очищення попередніх помилок
+            form.querySelectorAll('.is-invalid').forEach(el => {
+                el.classList.remove('is-invalid');
+            });
+            form.querySelectorAll('.invalid-feedback').forEach(el => {
+                el.style.display = 'none';
+            });
+            
+            // Збір даних форми
+            const formData = new FormData(form);
+            
+            // AJAX запит
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Успіх
+                    const bsModal = bootstrap.Modal.getInstance(modal);
+                    bsModal.hide();
+                    
+                    // Показ повідомлення про успіх
+                    showAlert('success', data.message);
+                    
+                    // Перезавантаження сторінки для оновлення даних
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    // Показ помилок
+                    Object.keys(data.errors).forEach(key => {
+                        if (key === '__all__') {
+                            // Загальні помилки
+                            showAlert('danger', data.errors[key][0]);
+                        } else {
+                            // Помилки конкретних полів
+                            const field = document.getElementById('id_' + key);
+                            if (field) {
+                                field.classList.add('is-invalid');
+                                const feedbackEl = field.nextElementSibling;
+                                if (feedbackEl && feedbackEl.className === 'invalid-feedback') {
+                                    feedbackEl.textContent = data.errors[key][0];
+                                    feedbackEl.style.display = 'block';
+                                }
+                            }
+                        }
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('danger', 'Сталася помилка при обробці запиту');
+            });
         });
         
         // Reset form when modal is closed
-        const modal = document.getElementById('addParameterModal');
         modal.addEventListener('hidden.bs.modal', function() {
             form.classList.remove('was-validated');
             form.reset();
+            form.action = "{% url 'add_system_parameter' %}";
+            modalTitle.textContent = "Додавання параметру";
+            document.getElementById('parameter_id').value = "";
+            
+            // Очищення помилок
+            form.querySelectorAll('.is-invalid').forEach(el => {
+                el.classList.remove('is-invalid');
+            });
+            form.querySelectorAll('.invalid-feedback').forEach(el => {
+                el.style.display = 'none';
+            });
         });
+        
+        // Функція для завантаження даних параметра для редагування
+        window.loadParameterData = function(parameterId, parameterName, parentId) {
+            // Встановлюємо заголовок модального вікна
+            modalTitle.textContent = "Редагування параметру";
+            
+            // Заповнюємо форму даними
+            document.getElementById('parameter_id').value = parameterId;
+            document.getElementById('id_name').value = parameterName;
+            
+            // Встановлюємо батьківський параметр, якщо він є
+            if (parentId) {
+                document.getElementById('id_parameter').value = parentId;
+            } else {
+                document.getElementById('id_parameter').value = '';
+            }
+            
+            // Змінюємо URL форми на URL редагування
+            form.action = `{% url 'edit_system_parameter' 0 %}`.replace('0', parameterId);
+            
+            // Відкриваємо модальне вікно
+            const parameterModal = new bootstrap.Modal(modal);
+            parameterModal.show();
+        };
+        
+        // Функція для показу повідомлень
+        function showAlert(type, message) {
+            const alertsContainer = document.getElementById('alerts-container');
+            if (!alertsContainer) {
+                // Створюємо контейнер для повідомлень, якщо він відсутній
+                const container = document.createElement('div');
+                container.id = 'alerts-container';
+                container.className = 'position-fixed top-0 end-0 p-3';
+                container.style.zIndex = '9999';
+                document.body.appendChild(container);
+            }
+            
+            const alertId = 'alert-' + Date.now();
+            const alertHtml = `
+                <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `;
+            
+            document.getElementById('alerts-container') || document.body.appendChild(alertsContainer);
+            document.getElementById('alerts-container').insertAdjacentHTML('beforeend', alertHtml);
+            
+            // Автоматичне закриття повідомлення через 5 секунд
+            setTimeout(() => {
+                const alertElement = document.getElementById(alertId);
+                if (alertElement) {
+                    const bsAlert = new bootstrap.Alert(alertElement);
+                    bsAlert.close();
+                }
+            }, 5000);
+        }
     });
 </script> 

@@ -13,7 +13,7 @@
             <div class="value">{{ total_products }}</div>
             <div class="text-muted">Всього товарів</div>
             <div class="mt-3">
-                <small class="text-success">{{ available_products }} доступних</small>
+                <small class="text-success">{{ total_products }} доступних</small>
             </div>
             <div class="mt-3">
                 <a href="{% url 'product_list' %}" class="btn btn-sm btn-primary">Переглянути всі</a>
@@ -24,10 +24,10 @@
     <div class="col-md-3 mb-4">
         <div class="dashboard-widget">
             <h3>Замовлення</h3>
-            <div class="value">{{ pending_orders }}</div>
-            <div class="text-muted">В обробці</div>
+            <div class="value">{{ orders_count }}</div>
+            <div class="text-muted">Всього замовлень</div>
             <div class="mt-3">
-                <small class="text-success">{{ completed_orders }} виконаних</small>
+                <small class="text-success">{{ successful_orders }} успішних</small>
             </div>
             <div class="mt-3">
                 <a href="{% url 'order_list' %}" class="btn btn-sm btn-primary">Переглянути замовлення</a>
@@ -75,10 +75,8 @@
                                 <td>{{ order.id }}</td>
                                 <td>{{ order.created_at|date:"d.m.Y" }}</td>
                                 <td>
-                                    {% if order.status == 'accepted' %}
-                                    <span class="badge bg-primary">Прийнято</span>
-                                    {% elif order.status == 'completed' %}
-                                    <span class="badge bg-success">Виконано</span>
+                                    {% if order.status == 'successful' %}
+                                    <span class="badge bg-success">Успішно</span>
                                     {% elif order.status == 'canceled' %}
                                     <span class="badge bg-danger">Скасовано</span>
                                     {% endif %}
@@ -118,19 +116,19 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for product in low_stock_products %}
+                            {% for variation in low_stock_variations_products %}
                             <tr>
-                                <td>{{ product.name }}</td>
-                                <td>{{ product.category.name }}</td>
+                                <td>{{ variation.real_name }}</td>
+                                <td>{{ variation.parent_product.culture.name }}</td>
                                 <td>
-                                    <span class="text-danger fw-bold">{{ product.quantity }}</span>
-                                    {% if product.measurement_unit %}
-                                    {{ product.measurement_unit.name }}
+                                    <span class="text-danger fw-bold">{{ variation.quantity }}</span>
+                                    {% if variation.measurement_unit %}
+                                    {{ variation.measurement_unit.name }}
                                     {% endif %}
                                 </td>
-                                <td>
-                                    <a href="{% url 'product_detail' product.id %}" class="btn btn-sm btn-outline-primary">Деталі</a>
-                                </td>
+                                {% comment %} <td>
+                                    <a href="{% url 'variation_product_detail' variation.id %}" class="btn btn-sm btn-outline-primary">Деталі</a>
+                                </td> {% endcomment %}
                             </tr>
                             {% empty %}
                             <tr>

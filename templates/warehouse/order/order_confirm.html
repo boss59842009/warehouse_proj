@@ -29,8 +29,6 @@
                                     <th width="14%">Назва імпорту</th>
                                     <th width="8%">Лот</th>
                                     <th width="8%">Кількість</th>
-                                    <th width="8%">Ціна</th>
-                                    <th width="20%">Сума</th>
                                     <th width="5%">Дія</th>
                                 </tr>
                             </thead>
@@ -38,8 +36,8 @@
                                 {% for item in order_items %}
                                 <tr data-id="{{ item.variation.id }}" data-price="{{ item.variation.price }}" data-max="{{ item.variation.quantity }}">
                                     <td>
-                                        {% if item.variation.productvariationimage_set.exists %}
-                                            <img src="{{ item.variation.productvariationimage_set.first.image.url }}" alt="{{ item.variation.name }}" class="img-thumbnail" style="max-height: 80px;">
+                                        {% if item.variation.parent_product.productimage_set.exists %}
+                                            <img src="{{ item.variation.parent_product.productimage_set.first.image.url }}" alt="{{ item.variation.name }}" class="img-thumbnail" style="max-height: 80px;">
                                         {% else %}
                                             <div class="text-center text-muted"><i class="fas fa-image fa-2x"></i></div>
                                         {% endif %}
@@ -55,8 +53,6 @@
                                         </div>
                                         <small class="text-muted">{{ item.variation.product.measurement_unit.name }}</small>
                                     </td>
-                                    <td class="item-price">{{ item.variation.price|floatformat:2 }} грн.</td>
-                                    <td class="item-total">{{ item.item_total|floatformat:2 }} грн.</td>
                                     <td>
                                         <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteOrderItemModal{{ item.variation.id }}" title="Видалити">
                                             <i class="fas fa-trash"></i>
@@ -86,10 +82,8 @@
                             </tbody>
                             <tfoot>
                                 <tr>
-                                    <th colspan="6" class="text-end">Загальна кількість:</th>
+                                    <th colspan="7" class="text-end">Загальна кількість:</th>
                                     <th id="totalQuantity" class="text-start">0</th>
-                                    <th class="text-end text-nowrap">Загальна сума:</th>
-                                    <th id="totalSum" class="text-start">{{ total_sum|floatformat:2 }} грн.</th>
                                 </tr>
                             </tfoot>
                         </table>

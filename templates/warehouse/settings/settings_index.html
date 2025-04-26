@@ -15,7 +15,49 @@
     .modal-header {
         border-bottom: 2px solid #f8f9fa;
     }
+
+    /* Додаємо стилі для стрілки */
+    .toggle-arrow {
+        transition: transform 0.2s;
+        width: 20px;
+        height: 20px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .toggle-arrow.fa-caret-down {
+        transform: rotate(90deg);
+    }
+
+    /* Оновлені стилі для зсуву рівнів вкладеності */
+    .parent-level-0 { 
+        padding-left: 10px !important; 
+        position: relative;
+    }
+    .child-level-1 { 
+        padding-left: 40px !important; 
+        position: relative;
+    }
+    .child-level-2 { 
+        padding-left: 70px !important; 
+        position: relative;
+    }
+    
+    /* Видаляємо тире з візуальних індикаторів */
+    .child-level-1:before {
+        content: "";
+    }
+    
+    .child-level-2:before {
+        content: "";
+    }
+    
+    .toggle-arrow { cursor: pointer; margin-right: 5px; }
 </style>
+
+<!-- Додаємо Font Awesome, якщо він ще не підключений в base.html -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 
 <div class="container-fluid py-4">
     <div class="row">
@@ -48,9 +90,6 @@
                             <h6 class="mb-3">Параметри</h6>
                             
                             <div class="text-end mb-3">
-                                <a href="{% url 'manage_categories' %}" class="btn btn-outline-secondary btn-sm">
-                                    Категорії
-                                </a>
                                 <a href="{% url 'manage_package_types' %}" class="btn btn-outline-secondary btn-sm">
                                     Упаковка
                                 </a>
@@ -69,59 +108,95 @@
                                 <table class="table table-hover">
                                     <thead class="table-light">
                                         <tr>
-                                            <th scope="col" width="5%">#</th>
-                                            <th scope="col" width="15%">Тип</th>
-                                            <th scope="col" width="25%">Назва</th>
-                                            <th scope="col" width="35%">Опис</th>
-                                            <th scope="col" width="10%">Статус</th>
-                                            <th scope="col" width="10%">Дії</th>
+                                            <th scope="col">Назва</th>
+                                            <th scope="col">Дії</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {% if parameters %}
+                                            <!-- Виводимо батьківські параметри (без параметра-батька) -->
                                             {% for param in parameters %}
-                                            <tr>
-                                                <td>{{ forloop.counter }}</td>
-                                                <td>
-                                                    {% if param.parameter_type == 'category' %}
-                                                        <span class="badge bg-info text-dark">Категорія</span>
-                                                    {% elif param.parameter_type == 'import_name' %}
-                                                        <span class="badge bg-warning text-dark">Назва (імпу)</span>
-                                                    {% elif param.parameter_type == 'lot' %}
-                                                        <span class="badge bg-success">Лот</span>
-                                                    {% elif param.parameter_type == 'package' %}
-                                                        <span class="badge bg-primary">Упаковка</span>
-                                                    {% elif param.parameter_type == 'unit' %}
-                                                        <span class="badge bg-secondary">Од. виміру</span>
-                                                    {% else %}
-                                                        <span class="badge bg-dark">{{ param.parameter_type }}</span>
-                                                    {% endif %}
-                                                </td>
-                                                <td>{{ param.name }}</td>
-                                                <td>{{ param.description|default:"-" }}</td>
-                                                <td>
-                                                    {% if param.is_active %}
-                                                        <span class="badge bg-success">Активний</span>
-                                                    {% else %}
-                                                        <span class="badge bg-danger">Неактивний</span>
-                                                    {% endif %}
-                                                </td>
-                                                <td>
-                                                    <div class="btn-group btn-group-sm" role="group">
-                                                        <a href="{% url 'edit_system_parameter' param.id %}" class="btn btn-outline-primary">
-                                                            <i class="bi bi-pencil"></i>
-                                                        </a>
-                                                        <button type="button" class="btn btn-outline-danger" 
-                                                            onclick="confirmDelete('{% url 'delete_system_parameter' param.id %}', '{{ param.name }}')">
-                                                            <i class="bi bi-trash"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
+                                                {% if not param.has_parent %}
+                                                    <tr data-id="{{ param.id }}">
+                                                        <td class="parent-level-0">
+                                                            {% if param.children.exists %}
+                                                                <i class="fas fa-caret-right toggle-arrow" data-parent="{{ param.id }}"></i>
+                                                                <span class="parameter-name">{{ param.name }}</span>
+                                                            {% else %}
+                                                                {{ param.name }}
+                                                            {% endif %}
+                                                        </td>
+                                                        <td>
+                                                            <div class="btn-group btn-group-sm" role="group">
+                                                                <button type="button" class="btn btn-outline-primary edit-parameter-btn" 
+                                                                    data-id="{{ param.id }}" 
+                                                                    data-name="{{ param.name }}" 
+                                                                    data-parent="">
+                                                                    <i class="fas fa-pencil-alt"></i>
+                                                                </button>
+                                                                <button type="button" class="btn btn-outline-danger" 
+                                                                    onclick="confirmDelete('{% url 'delete_system_parameter' param.id %}', '{{ param.name }}')">
+                                                                    <i class="fas fa-trash"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    
+                                                    <!-- Виводимо дочірні елементи першого рівня -->
+                                                    {% for child in param.children.all %}
+                                                        <tr class="child-row child-of-{{ param.id }}" style="display: none;" data-id="{{ child.id }}">
+                                                            <td class="child-level-1">
+                                                                {% if child.children.exists %}
+                                                                    <i class="fas fa-caret-right toggle-arrow" data-parent="{{ child.id }}"></i>
+                                                                    <span class="parameter-name">{{ child.name }}</span>
+                                                                {% else %}
+                                                                    {{ child.name }}
+                                                                {% endif %}
+                                                            </td>
+                                                            <td>
+                                                                <div class="btn-group btn-group-sm" role="group">
+                                                                    <button type="button" class="btn btn-outline-primary edit-parameter-btn" 
+                                                                        data-id="{{ child.id }}" 
+                                                                        data-name="{{ child.name }}" 
+                                                                        data-parent="{{ param.id }}">
+                                                                        <i class="fas fa-pencil-alt"></i>
+                                                                    </button>
+                                                                    <button type="button" class="btn btn-outline-danger" 
+                                                                        onclick="confirmDelete('{% url 'delete_system_parameter' child.id %}', '{{ child.name }}')">
+                                                                        <i class="fas fa-trash"></i>
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                        
+                                                        <!-- Виводимо дочірні елементи другого рівня -->
+                                                        {% for grandchild in child.children.all %}
+                                                            <tr class="child-row child-of-{{ child.id }}" style="display: none;" data-id="{{ grandchild.id }}">
+                                                                <td class="child-level-2">
+                                                                    {{ grandchild.name }}
+                                                                </td>
+                                                                <td>
+                                                                    <div class="btn-group btn-group-sm" role="group">
+                                                                        <button type="button" class="btn btn-outline-primary edit-parameter-btn" 
+                                                                            data-id="{{ grandchild.id }}" 
+                                                                            data-name="{{ grandchild.name }}" 
+                                                                            data-parent="{{ child.id }}">
+                                                                            <i class="fas fa-pencil-alt"></i>
+                                                                        </button>
+                                                                        <button type="button" class="btn btn-outline-danger" 
+                                                                            onclick="confirmDelete('{% url 'delete_system_parameter' grandchild.id %}', '{{ grandchild.name }}')">
+                                                                            <i class="fas fa-trash"></i>
+                                                                        </button>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        {% endfor %}
+                                                    {% endfor %}
+                                                {% endif %}
                                             {% endfor %}
                                         {% else %}
                                             <tr>
-                                                <td colspan="6" class="text-center py-3">Немає параметрів у системі</td>
+                                                <td colspan="2" class="text-center py-3">Немає параметрів у системі</td>
                                             </tr>
                                         {% endif %}
                                     </tbody>
@@ -336,7 +411,10 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Скасувати</button>
-                <a href="#" id="confirmDeleteBtn" class="btn btn-danger btn-sm">Видалити</a>
+                <form id="deleteForm" method="post" action="#">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger btn-sm">Видалити</button>
+                </form>
             </div>
         </div>
     </div>
@@ -365,13 +443,11 @@
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block extrajs %}
 <script>
     function confirmDelete(deleteUrl, itemName) {
         document.getElementById('deleteItemName').textContent = itemName;
-        document.getElementById('confirmDeleteBtn').setAttribute('href', deleteUrl);
+        document.getElementById('deleteForm').action = deleteUrl;
         
         const deleteModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
         deleteModal.show();
@@ -389,11 +465,33 @@
         }
         
         // Оновлювати URL при зміні вкладки
-        document.querySelectorAll('.nav-tabs .nav-link').forEach(tabEl => {
+        document.querySelectorAll('.nav-tabs .btn').forEach(tabEl => {
             tabEl.addEventListener('shown.bs.tab', function(e) {
                 const id = e.target.getAttribute('href');
                 history.pushState(null, null, id);
             });
+        });
+        
+        // Обробка кліків по стрілочках
+        document.querySelectorAll('.toggle-arrow').forEach(arrow => {
+            arrow.addEventListener('click', function() {
+                const parentId = this.getAttribute('data-parent');
+                const childRows = document.querySelectorAll(`.child-of-${parentId}`);
+                
+                // Змінюємо видимість дочірніх рядків
+                childRows.forEach(row => {
+                    row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+                });
+                
+                // Змінюємо напрямок стрілки
+                this.classList.toggle('fa-caret-right');
+                this.classList.toggle('fa-caret-down');
+            });
+        });
+        
+        // Видаляємо старі обробники подій
+        document.querySelectorAll('.parameter-name').forEach(name => {
+            name.removeEventListener('click', function() {});
         });
         
         // Setup edit user buttons
@@ -433,6 +531,23 @@
                 deleteUserModal.show();
             });
         });
+        
+        // Обробник кліку на кнопку редагування параметру
+        document.querySelectorAll('.edit-parameter-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const parameterId = this.dataset.id;
+                const parameterName = this.dataset.name;
+                const parentId = this.dataset.parent;
+                
+                // Викликаємо функцію з parameter_modal.html
+                if (typeof loadParameterData === 'function') {
+                    loadParameterData(parameterId, parameterName, parentId);
+                }
+            });
+        });
+        
+        // Перевірка, чи працює обробник подій для toggle-children
+        console.log('Кількість елементів toggle-children:', document.querySelectorAll('.toggle-arrow').length);
     });
 </script>
 {% endblock %} 

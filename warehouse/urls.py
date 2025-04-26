@@ -16,12 +16,6 @@ urlpatterns = [
     path('categories/<int:category_id>/products/', views.category_products, name='category_products'),
     path('cultures/<int:culture_id>/products/', views.culture_products, name='culture_products'),
 
-    # Variations Product URLs
-    path('variations/new/<int:product_id>/', views.variation_product_create, name='variation_product_create'),
-    path('variations/<int:pk>/', views.variation_product_detail, name='variation_product_detail'),
-    path('variations/<int:pk>/edit/', views.variation_product_update, name='variation_product_update'),
-    path('variations/<int:pk>/delete/', views.variation_product_delete, name='variation_product_delete'),
-    
     # Order URLs
     path('orders/', views.order_list, name='order_list'),
     path('orders/<int:pk>/', views.order_detail, name='order_detail'),

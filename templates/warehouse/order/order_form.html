@@ -10,36 +10,59 @@
         <div class="card shadow-sm border mb-4">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">Товари для замовлення</h5>
-                <button type="button" class="btn btn-primary btn-sm" id="addItemBtn">
+                <button type="button" class="btn btn-primary btn" id="addItemBtn">
                     <i class="fas fa-plus me-1"></i> Оформити замовлення
                 </button>
             </div>
             
             <!-- Фільтри товарів -->
-            <div class="product-filters px-3 pt-2 pb-1 border-bottom bg-light">
-                <div class="d-flex flex-wrap align-items-center">
-                    <div class="filter-label me-2 my-1 fw-medium">Фільтри:</div>
-                    <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="culture">
-                        Культура
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="real_name">
-                        Назва справжня
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="name">
-                        Назва
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="lot_number">
-                        Номер лоту
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="measurement_unit">
-                        Од. виміру
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="package_type">
-                        Тип упаковки
-                    </button>
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-body">
+                        <form method="get" action="{% url 'order_create' %}" class="row g-3 w-100">
+                            <!-- Перший ряд фільтрів -->
+                            <div class="col-md-4">
+                                <label for="id_culture" class="form-label">Культура</label>
+                                {{ filter_form.culture }}
+                            </div>
+                            <div class="col-md-4">
+                                <label for="id_real_name" class="form-label">Назва справжня</label>
+                                {{ filter_form.real_name }}
+                            </div>
+                            <div class="col-md-4">
+                                <label for="id_name" class="form-label">Назва</label>
+                                {{ filter_form.name }}
+                            </div>
+                            
+                            <!-- Другий ряд фільтрів -->
+                            <div class="col-md-3">
+                                <label for="id_lot_number" class="form-label">Номер лоту</label>
+                                {{ filter_form.lot_number }}
+                            </div>
+                            <div class="col-md-3">
+                                <label for="id_measurement_unit" class="form-label">Од. виміру</label>
+                                {{ filter_form.measurement_unit }}
+                            </div>
+                            <div class="col-md-3">
+                                <label for="id_package_type" class="form-label">Тип упаковки</label>
+                                {{ filter_form.package_type }}
+                            </div>
+                            <div class="col-md-3 d-flex align-items-end">
+                                <div class="d-flex gap-2 w-100 justify-content-end">
+                                    <button type="submit" class="btn btn-primary mb-0">
+                                        <i class="fas fa-filter me-1"></i> Фільтрувати
+                                    </button>
+                                    <a href="{% url 'order_create' %}" class="btn btn-outline-secondary mb-0">
+                                        <i class="fas fa-times me-1"></i> Скинути
+                                    </a>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
-            
+        </div>
+        <div class="card shadow-sm border">
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table border-bottom mb-0" id="orderItemsTable">
@@ -70,8 +93,8 @@
                                     </div>
                                 </td>
                                 <td>
-                                    {% if variation.productvariationimage_set.exists %}
-                                        <img src="{{ variation.productvariationimage_set.first.image.url }}" alt="{{ variation.name }}" class="img-thumbnail" style="max-height: 80px;">
+                                    {% if variation.parent_product.productimage_set.exists %}
+                                        <img src="{{ variation.parent_product.productimage_set.first.image.url }}" alt="{{ variation.name }}" class="img-thumbnail" style="max-height: 80px;">
                                     {% else %}
                                         <div class="text-center text-muted"><i class="fas fa-image fa-2x"></i></div>
                                     {% endif %}
@@ -97,11 +120,8 @@
                                 <td colspan="10" class="text-center py-4">
                                     <div class="d-flex flex-column align-items-center py-3">
                                         <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
-                                        <h5 class="text-muted">Товари не знайдено</h5>
-                                        <p class="text-muted mb-3">Спробуйте змінити параметри пошуку або створіть новий товар</p>
-                                        <a href="{% url 'product_create' %}" class="btn btn-primary">
-                                            <i class="fas fa-plus me-1"></i> Додати товар
-                                        </a>
+                                        <h5 class="text-muted">Замовлення не знайдені</h5>
+                                        <p class="text-muted mb-3">Спробуйте змінити параметри пошуку або створіть нове замовлення</p>
                                     </div>
                                 </td>
                             </tr>
@@ -124,15 +144,6 @@
                         </div>
                     </div>
                     <div class="col-md-2">
-                        <div class="d-flex align-items-end">
-                            <div class="text-primary me-2">
-                                <i class="fas fa-cubes fa-lg"></i>
-                            </div>
-                            <div>
-                                <div class="text-muted small">Кількість:</div>
-                                <div class="fs-6 fw-bold" id="totalQuantity">0</div>
-                            </div>
-                        </div>
                     </div>
                     <div class="col-md-2">
                         <div class="d-flex align-items-end">
@@ -141,7 +152,7 @@
                             </div>
                             <div>
                                 <div class="text-muted small">Всього позицій:</div>
-                                <div class="fs-6 fw-bold" id="totalItems">0</div>
+                                <div class="fs-6 fw-bold" id="totalItems">{{ variations|length }}</div>
                             </div>
                         </div>
                     </div>

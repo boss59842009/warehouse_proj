@@ -23,7 +23,7 @@
                 <h5 class="card-title mb-0">Параметри звіту</h5>
             </div>
             <div class="card-body">
-                <form method="get" id="reportForm">
+                <form method="get" action="{% url 'stock_report' %}" id="reportForm">
                     <div class="row align-items-end">
                         <div class="col-md-2 mb-3 mb-md-0">
                             <label class="form-label">Формат</label>
@@ -49,36 +49,50 @@
 
 <div class="row">
     <div class="col-md-12">
-        <div class="card shadow-sm border mb-4">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">Результати звіту</h5>
+        <div class="card">
+            <div class="card-body">
+                <form method="get" action="{% url 'stock_report' %}" class="row g-3 w-100">
+                    <!-- Перший ряд фільтрів -->
+                    <div class="col-md-4">
+                        <label for="id_culture" class="form-label">Культура</label>
+                        {{ filter_form.culture }}
+                    </div>
+                    <div class="col-md-4">
+                        <label for="id_real_name" class="form-label">Назва справжня</label>
+                        {{ filter_form.real_name }}
+                    </div>
+                    <div class="col-md-4">
+                        <label for="id_name" class="form-label">Назва</label>
+                        {{ filter_form.name }}
+                    </div>
+                    
+                    <!-- Другий ряд фільтрів -->
+                    <div class="col-md-3">
+                        <label for="id_lot_number" class="form-label">Номер лоту</label>
+                        {{ filter_form.lot_number }}
+                    </div>
+                    <div class="col-md-3">
+                        <label for="id_measurement_unit" class="form-label">Од. виміру</label>
+                        {{ filter_form.measurement_unit }}
+                    </div>
+                    <div class="col-md-3">
+                        <label for="id_package_type" class="form-label">Тип упаковки</label>
+                        {{ filter_form.package_type }}
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <div class="d-flex gap-2 w-100 justify-content-end">
+                            <button type="submit" class="btn btn-primary mb-0">
+                                <i class="fas fa-filter me-1"></i> Фільтрувати
+                            </button>
+                            <a href="{% url 'stock_report' %}" class="btn btn-outline-secondary mb-0">
+                                <i class="fas fa-times me-1"></i> Скинути
+                            </a>
+                        </div>
+                    </div>
+                </form>
             </div>
-            
-            <!-- Фільтри -->
-            <div class="product-filters px-3 pt-2 pb-1 border-bottom bg-light">
-                <div class="d-flex flex-wrap align-items-center">
-                    <div class="filter-label me-2 my-1 fw-medium">Фільтри:</div>
-                    <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="culture">
-                        Культура
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="real_name">
-                        Назва справжня
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="name">
-                        Назва
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="lot_number">
-                        Номер лоту
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="measurement_unit">
-                        Од. виміру
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="package_type">
-                        Тип упаковки
-                    </button>
-                </div>
-            </div>
-            
+        </div>
+        <div class="card shadow-sm border">
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover mb-0" id="stockTable">
@@ -126,14 +140,27 @@
                 </div>
                 <div class="card-body">
                     <div class="row align-items-center">
-                        <div class="col-md-4 text-center">
+                        <div class="col-md-6 text-center">
                             <div class="d-flex align-items-center justify-content-center">
-                        <div class="text-primary me-3">
-                            <i class="fas fa-cubes fa-2x"></i>
+                                <div class="text-primary me-3">
+                                    <i class="fas fa-cubes fa-2x"></i>
+                                </div>
+                                <div>
+                                    <div class="text-muted small">Загальна кількість товарів:</div>
+                                    <div class="fs-5 fw-bold">{{ total_products }}</div>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <div class="text-muted small">Загальна кількість товарів:</div>
-                            <div class="fs-5 fw-bold">{{ total_products }}</div>
+                        <div class="col-md-6 text-center">
+                            <div class="d-flex align-items-center justify-content-center">
+                                <div class="text-primary me-3">
+                                    <i class="fas fa-box fa-2x"></i>
+                                </div>
+                                <div>
+                                    <div class="text-muted small">Загальна кількість упаковок:</div>
+                                    <div class="fs-5 fw-bold">{{ total_packages }}</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

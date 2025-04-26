@@ -18,43 +18,47 @@
 </div>
 
 <div class="card shadow-sm border mb-4">
-    <!-- Фільтри -->
-    <div class="product-filters px-3 pt-2 pb-1 border-bottom bg-light">
-        <div class="d-flex flex-wrap align-items-center">
-            <div class="filter-label me-2 my-1 fw-medium">Фільтри:</div>
-            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="culture">
-                Культура
-            </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="real_name">
-                Назва справжня
-            </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="name">
-                Назва
-            </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="lot_number">
-                Номер лоту
-            </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="measurement_unit">
-                Од. виміру
-            </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="package_type">
-                Тип упаковки
-            </button>
-        </div>
+    <div class="card-header bg-white">
+        <h5 class="card-title mb-0">Фільтри</h5>
     </div>
-    
+    <div class="card-body">
+        <!-- Фільтри -->
+        <form method="get" action="{% url 'movement_list' %}" id="filterForm">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="status" class="form-label">Статус</label>
+                    <select name="movement_type" id="status" class="form-select">
+                        <option value="">Типи руху</option>
+                        <option value="incoming" {% if request.GET.movement_type == 'incoming' %}selected{% endif %}>Надходження</option>
+                        <option value="inventory" {% if request.GET.movement_type == 'inventory' %}selected{% endif %}>Інвентаризація</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="date_from" class="form-label">Дата</label>
+                    <input type="date" class="form-control" id="date_from" name="created_at_from" value="{{ request.GET.created_at_from }}">
+                </div>
+                <div class="col-md-12 text-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search me-1"></i> Пошук
+                    </button>
+                    <a href="{% url 'movement_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-1"></i> Скинути
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>  
+</div>
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover mb-0">
                 <thead class="bg-light">
                     <tr>
-                        <th>ID</th>
-                        <th>Товар</th>
+                        <th>№</th>
                         <th>Тип руху</th>
-                        <th>Кількість</th>
+                        <th>Загальна кількість</th>
+                        <th>Загальна кількість упаковок</th>
                         <th>Дата</th>
-                        <th>Документ</th>
-                        <th>Лот</th>
                         <th>Виконавець</th>
                         <th>Дії</th>
                     </tr>
@@ -64,67 +68,22 @@
                     <tr>
                         <td>{{ movement.id }}</td>
                         <td>
-                            <div class="d-flex align-items-center">
-                                {% if movement.product.image %}
-                                <img src="{{ movement.product.image.url }}" alt="{{ movement.product.name }}" class="me-2" 
-                                     style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">
-                                {% else %}
-                                <img src="/static/img/no-image.png" alt="No Image" class="me-2" 
-                                     style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">
-                                {% endif %}
-                                <div>
-                                    <div class="fw-medium">{{ movement.product.name }}</div>
-                                    <div class="text-muted small">{{ movement.product.category.name }}</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>
                             {% if movement.movement_type == 'incoming' %}
                             <span class="badge bg-success">Надходження</span>
-                            {% elif movement.movement_type == 'outgoing' %}
-                            <span class="badge bg-primary">Видача</span>
-                            {% elif movement.movement_type == 'return' %}
-                            <span class="badge bg-info">Повернення</span>
-                            {% elif movement.movement_type == 'write_off' %}
-                            <span class="badge bg-danger">Списання</span>
-                            {% else %}
-                            <span class="badge bg-secondary">{{ movement.get_movement_type_display }}</span>
+                            {% elif movement.movement_type == 'inventory' %}
+                            <span class="badge bg-primary">Інвентаризація</span>
                             {% endif %}
                         </td>
-                        <td>{{ movement.quantity }} {{ movement.product.measurement_unit.name }}</td>
-                        <td>{{ movement.date|date:"d.m.Y H:i" }}</td>
+                        <td>{{ movement.total_quantity }} {{ movement.product.measurement_unit.name }}</td>
+                        <td>{{ movement.total_packages_count }} {{ movement.product.package_type.name }}</td>
+                        <td>{{ movement.created_at|date:"d.m.Y H:i" }}</td>
                         <td>
-                            {% if movement.document_number %}
-                            {{ movement.document_number }}
-                            {% else %}
-                            <span class="text-muted small">Не вказано</span>
-                            {% endif %}
-                            
-                            {% if movement.order %}
-                            <div class="small">
-                                <a href="{% url 'order_detail' pk=movement.order.id %}" class="text-decoration-none">
-                                    Замовлення #{{ movement.order.id }}
-                                </a>
-                            </div>
-                            {% endif %}
+                            {{ movement.performed_by.username }}
                         </td>
                         <td>
-                            {% if movement.product.lot_number %}
-                            {{ movement.product.lot_number }}
-                            {% else %}
-                            <span class="text-muted small">—</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ movement.performed_by.username }}</td>
-                        <td>
-                            <div class="btn-group">
-                                <a href="{% url 'movement_detail' pk=movement.id %}" class="btn btn-sm btn-outline-primary py-1 px-2">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <a href="{% url 'movement_update' pk=movement.id %}" class="btn btn-sm btn-outline-secondary py-1 px-2">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                            </div>
+                            {% comment %} <a href="{% url 'product_income_detail' pk=movement.id %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i>
+                            </a> {% endcomment %}
                         </td>
                     </tr>
                     {% empty %}

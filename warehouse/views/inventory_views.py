@@ -1,3 +1,4 @@
+from django.forms import formset_factory
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -12,14 +13,33 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
 from datetime import datetime
 from ..models import Product, Culture, Inventory, ProductVariation
-from ..forms import InventoryForm, ReportForm, OrderItemForm
+from ..forms import InventoryForm, ProductIncomeItemForm, ProductVariationFilterForm, ReportForm, OrderItemForm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
 @login_required
 def cuantity_list(request):
     """View to display list of inventory records."""
-    variations = ProductVariation.objects.all().order_by('-created_at')
+    if request.method == 'GET':
+        filter_form = ProductVariationFilterForm(request.GET)
+        if filter_form.is_valid():
+            filter_kwargs = {}
+            if filter_form.cleaned_data['culture']:
+                filter_kwargs['parent_product__culture'] = filter_form.cleaned_data['culture']
+            if filter_form.cleaned_data['real_name']:
+                filter_kwargs['real_name__icontains'] = filter_form.cleaned_data['real_name']
+            if filter_form.cleaned_data['name']:
+                filter_kwargs['import_name__icontains'] = filter_form.cleaned_data['name']
+            if filter_form.cleaned_data['lot_number']:
+                filter_kwargs['lot_number__icontains'] = filter_form.cleaned_data['lot_number']
+            if filter_form.cleaned_data['measurement_unit']:
+                filter_kwargs['measurement_unit'] = filter_form.cleaned_data['measurement_unit']
+            if filter_form.cleaned_data['package_type']:
+                filter_kwargs['package_type'] = filter_form.cleaned_data['package_type']
+
+            variations = ProductVariation.objects.filter(**filter_kwargs)
+    else:
+        variations = ProductVariation.objects.all().order_by('-created_at')
     
     # Paginate results
     paginator = Paginator(variations, 10)  # Show 10 records per page
@@ -28,6 +48,7 @@ def cuantity_list(request):
 
     context = {
         'variations': page_obj,
+        'filter_form': filter_form,
     }
     
     return render(request, 'warehouse/inventory/cuantity_list.html', context)
@@ -35,20 +56,58 @@ def cuantity_list(request):
 @login_required
 def product_income_create(request):
     """View to create a new product income record."""
+    from django.http import JsonResponse
+    from warehouse.models import Product, ProductVariation, Culture, PackageType, MeasurementUnit
+
+    # Якщо це AJAX-запит для отримання варіацій
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.GET.get('product_id'):
+        product_id = request.GET.get('product_id')
+        try:
+            product = Product.objects.get(id=product_id)
+            variations = ProductVariation.objects.filter(parent_product_id=product_id)
+            variations_data = [
+                {
+                    'id': variation.id,
+                    'name': variation.import_name or variation.name or 'Основна варіація',
+                    'real_name': variation.real_name or '',
+                    'lot_number': variation.lot_number or '',
+                    'package_type': variation.package_type.id if variation.package_type else None,
+                    'measurement_unit': variation.measurement_unit.id if variation.measurement_unit else None,
+                    'product_id': variation.parent_product_id,
+                    'culture': product.culture.name if product.culture else '',
+                    'culture_id': product.culture.id if product.culture else None
+                }
+                for variation in variations
+            ]
+            return JsonResponse({'variations': variations_data})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+
     if request.method == 'POST':
         form = OrderItemForm(request.POST)
         
         if form.is_valid():
             form.save()
-            messages.success(request, 'Інвентаризація успішно створена.')
+            messages.success(request, 'Прибуткова накладна успішно створена.')
             return redirect('inventory_list')
     else:
-        form = OrderItemForm()  # Додано ініціалізацію форми для GET-запиту
+        form = OrderItemForm()
+    
+    # Отримуємо всі товари та культури для відображення в шаблоні
+    products = Product.objects.all().prefetch_related('variations', 'productimage_set')
+    cultures = Culture.objects.all()
+    
+    # Створюємо formset для товарів у накладній
+    ProductIncomeFormSet = formset_factory(ProductIncomeItemForm, extra=0)
+    formset = ProductIncomeFormSet(prefix='form')
     
     context = {
         'form': form,
+        'formset': formset,
+        'products': products,
+        'cultures': cultures,
     }
-    return render(request, 'warehouse/inventory/product_income_create.html', context)
+    return render(request, 'warehouse/movement/income_create_form.html', context)
 
 @login_required
 def inventory_detail(request, pk):
@@ -64,29 +123,57 @@ def inventory_detail(request, pk):
 @login_required
 def inventory_create(request):
     """View to create a new inventory record."""
+    from django.http import JsonResponse
+    from warehouse.models import Product, ProductVariation, Culture, PackageType, MeasurementUnit
+
+    # Якщо це AJAX-запит для отримання варіацій
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.GET.get('product_id'):
+        product_id = request.GET.get('product_id')
+        try:
+            product = Product.objects.get(id=product_id)
+            variations = ProductVariation.objects.filter(parent_product_id=product_id)
+            variations_data = [
+                {
+                    'id': variation.id,
+                    'name': variation.import_name or variation.name or 'Основна варіація',
+                    'real_name': variation.real_name or '',
+                    'lot_number': variation.lot_number or '',
+                    'package_type': variation.package_type.id if variation.package_type else None,
+                    'measurement_unit': variation.measurement_unit.id if variation.measurement_unit else None,
+                    'product_id': variation.parent_product_id,
+                    'culture': product.culture.name if product.culture else '',
+                    'culture_id': product.culture.id if product.culture else None
+                }
+                for variation in variations
+            ]
+            return JsonResponse({'variations': variations_data})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+
     if request.method == 'POST':
-        form = InventoryForm(request.POST)
+        form = OrderItemForm(request.POST)
         
         if form.is_valid():
-            inventory = form.save(commit=False)
-            inventory.performed_by = request.user
-            
-            # Set expected quantity from current product quantity
-            product = inventory.product
-            inventory.quantity_expected = product.quantity
-            
-            inventory.save()
-            
-            messages.success(request, f'Інвентаризацію для "{product.name}" успішно створено.')
-            return redirect('inventory_detail', pk=inventory.pk)
+            form.save()
+            messages.success(request, 'Прибуткова накладна успішно створена.')
+            return redirect('inventory_list')
     else:
-        form = InventoryForm()
+        form = OrderItemForm()
+    
+    # Отримуємо всі товари та культури для відображення в шаблоні
+    products = Product.objects.all().prefetch_related('variations', 'productimage_set')
+    cultures = Culture.objects.all()
+    
+    # Створюємо formset для товарів у накладній
+    ProductIncomeFormSet = formset_factory(ProductIncomeItemForm, extra=0)
+    formset = ProductIncomeFormSet(prefix='form')
     
     context = {
         'form': form,
-        'title': 'Створити нову інвентаризацію',
+        'formset': formset,
+        'products': products,
+        'cultures': cultures,
     }
-    
     return render(request, 'warehouse/inventory/inventory_form.html', context)
 
 @login_required
@@ -123,40 +210,76 @@ def inventory_update(request, pk):
 @login_required
 def stock_report(request):
     """View to display and generate stock reports."""
-    products_variations = ProductVariation.objects.all().order_by('parent_product__culture__name', 'real_name')
+    # Перевіряємо, чи натиснута кнопка скидання фільтрів
+    if 'reset' in request.GET:
+        # Видаляємо збережені фільтри з сесії
+        if 'stock_report_filters' in request.session:
+            del request.session['stock_report_filters']
+        return redirect('stock_report')
+    
+    # Ініціалізуємо форми
     form = ReportForm(request.GET)
     
-    # Apply filters if form is valid
-    if form.is_valid():
-        culture = form.cleaned_data.get('culture')
+    # Визначаємо, які параметри фільтрації використовувати
+    filter_params = request.GET
+    
+    # Якщо це запит на генерацію звіту і є збережені фільтри, використовуємо їх
+    if 'generate' in request.GET and 'stock_report_filters' in request.session:
+        filter_params = request.session['stock_report_filters']
+    
+    # Ініціалізуємо форму фільтрації з відповідними параметрами
+    filter_form = ProductVariationFilterForm(filter_params)
+    
+    # Отримуємо відфільтровані дані
+    variations = ProductVariation.objects.all().order_by('-created_at')
+    
+    if filter_form.is_valid():
+        # Зберігаємо фільтри в сесії, якщо це не запит на генерацію звіту
+        if 'generate' not in request.GET:
+            request.session['stock_report_filters'] = request.GET.dict()
         
-        if culture:
-            products_variations = products_variations.filter(parent_product__culture=culture)
+        # Застосовуємо фільтри
+        filter_kwargs = {}
+        if filter_form.cleaned_data['culture']:
+            filter_kwargs['parent_product__culture'] = filter_form.cleaned_data['culture']
+        if filter_form.cleaned_data['real_name']:
+            filter_kwargs['real_name__icontains'] = filter_form.cleaned_data['real_name']
+        if filter_form.cleaned_data['name']:
+            filter_kwargs['import_name__icontains'] = filter_form.cleaned_data['name']
+        if filter_form.cleaned_data['lot_number']:
+            filter_kwargs['lot_number__icontains'] = filter_form.cleaned_data['lot_number']
+        if filter_form.cleaned_data['measurement_unit']:
+            filter_kwargs['measurement_unit'] = filter_form.cleaned_data['measurement_unit']
+        if filter_form.cleaned_data['package_type']:
+            filter_kwargs['package_type'] = filter_form.cleaned_data['package_type']
+        
+        if filter_kwargs:
+            variations = variations.filter(**filter_kwargs)
     
     # Calculate totals
-    total_products = products_variations.count()
-    total_quantity = products_variations.aggregate(Sum('quantity'))['quantity__sum'] or 0
-    total_value = sum(product.quantity * product.price for product in products_variations)
+    total_products = variations.count()
+    total_packages = variations.aggregate(Sum('packages_count'))['packages_count__sum'] or 0
+    total_value = sum(product.quantity * product.price for product in variations)
     
     # Generate report if requested
     if 'generate' in request.GET and form.is_valid():
         report_format = form.cleaned_data.get('format', 'csv')
-        
         if report_format == 'csv':
-            return generate_csv_report(products_variations, culture)
+            return generate_csv_report(variations)
         elif report_format == 'pdf':
-            return generate_pdf_report(products_variations, culture)
+            return generate_pdf_report(variations)
     
     # Paginate results for display
-    paginator = Paginator(products_variations, 20)  # Show 20 products per page
+    paginator = Paginator(variations, 20)  # Show 20 products per page
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
     context = {
         'variations': page_obj,
         'form': form,
+        'filter_form': filter_form,
         'total_products': total_products,
-        'total_quantity': total_quantity,
+        'total_packages': total_packages,
         'total_value': total_value,
     }
     return render(request, 'warehouse/inventory/stock_report.html', context)

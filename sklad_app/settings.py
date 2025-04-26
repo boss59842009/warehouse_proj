@@ -114,3 +114,6 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 # Django Tables2
 DJANGO_TABLES2_TEMPLATE = "django_tables2/bootstrap5.html" 
+
+# Redirect to home page after login
+LOGIN_REDIRECT_URL = '/'

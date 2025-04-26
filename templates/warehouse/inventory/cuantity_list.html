@@ -13,45 +13,54 @@
             </a>
         </div>
     </div>
-    <div class="col-md-6">
-        <form method="get" class="d-flex justify-content-end">
-            <div class="input-group input-group-sm" style="max-width: 300px;">
-                <input type="text" name="search" class="form-control" placeholder="Пошук за товаром..." 
-                       value="{{ request.GET.search|default:'' }}">
-                <button class="btn btn-outline-secondary" type="submit">
-                    <i class="fas fa-search"></i>
-                </button>
-            </div>
-        </form>
-    </div>
 </div>
-
-<div class="card shadow-sm border mb-4">    
-    <!-- Фільтри -->
-    <div class="product-filters px-3 pt-2 pb-1 border-bottom bg-light">
-        <div class="d-flex flex-wrap align-items-center">
-            <div class="filter-label me-2 my-1 fw-medium">Фільтри:</div>
-            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="culture">
-                Культура
-            </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="real_name">
-                Назва справжня
-            </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="name">
-                Назва
-            </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="lot_number">
-                Номер лоту
-            </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="measurement_unit">
-                Од. виміру
-            </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm me-2 my-1 filter-btn" data-filter="package_type">
-                Тип упаковки
-            </button>
+<!-- Фільтри товарів -->
+<div class="col-md-12">
+    <div class="card">
+        <div class="card-body">
+            <form method="get" action="{% url 'cuantity_list' %}" class="row g-3 w-100">
+                <!-- Перший ряд фільтрів -->
+                <div class="col-md-4">
+                    <label for="id_culture" class="form-label">Культура</label>
+                    {{ filter_form.culture }}
+                </div>
+                <div class="col-md-4">
+                    <label for="id_real_name" class="form-label">Назва справжня</label>
+                    {{ filter_form.real_name }}
+                </div>
+                <div class="col-md-4">
+                    <label for="id_name" class="form-label">Назва</label>
+                    {{ filter_form.name }}
+                </div>
+                
+                <!-- Другий ряд фільтрів -->
+                <div class="col-md-3">
+                    <label for="id_lot_number" class="form-label">Номер лоту</label>
+                    {{ filter_form.lot_number }}
+                </div>
+                <div class="col-md-3">
+                    <label for="id_measurement_unit" class="form-label">Од. виміру</label>
+                    {{ filter_form.measurement_unit }}
+                </div>
+                <div class="col-md-3">
+                    <label for="id_package_type" class="form-label">Тип упаковки</label>
+                    {{ filter_form.package_type }}
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <div class="d-flex gap-2 w-100 justify-content-end">
+                        <button type="submit" class="btn btn-primary mb-0">
+                            <i class="fas fa-filter me-1"></i> Фільтрувати
+                        </button>
+                        <a href="{% url 'cuantity_list' %}" class="btn btn-outline-secondary mb-0">
+                            <i class="fas fa-times me-1"></i> Скинути
+                        </a>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
-    
+</div>  
+<div class="card shadow-sm border">
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover mb-0">

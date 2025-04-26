@@ -2,8 +2,8 @@ from django import forms
 from django.forms import inlineformset_factory
 from .models import (
     Product, ProductImage, PackageType, MeasurementUnit, Culture,
-    Order, OrderItem, Inventory,
-    BackupSettings, SystemParameter, ProductVariation, ProductVariationImage, ProductIncome, ProductIncomeItem
+    Order, OrderItem, Inventory, InventoryItem,
+    BackupSettings, SystemParam, ProductVariation, ProductVariationImage, ProductIncome, ProductIncomeItem
 )
 
 class ProductForm(forms.ModelForm):
@@ -42,19 +42,6 @@ class ProductVariationForm(forms.ModelForm):
             'measurement_unit': forms.Select(attrs={'class': 'form-select'}),
         }
 
-class ProductVariationImageForm(forms.ModelForm):
-    class Meta:
-        model = ProductVariationImage
-        fields = ['image']
-
-ProductVariationImageFormSet = inlineformset_factory(
-    ProductVariation,
-    ProductVariationImage,
-    fields=['image'],
-    extra=0,  # Не створювати додаткові порожні форми
-    can_delete=True,
-    max_num=5
-)
 # Формсет для варіацій товару
 ProductVariationFormSet = inlineformset_factory(
     Product, 
@@ -121,8 +108,9 @@ class ProductIncomeForm(forms.ModelForm):
 class ProductIncomeItemForm(forms.ModelForm):
     class Meta:
         model = ProductIncomeItem
-        fields = ['quantity', 'packages_count', 'lot_number', 'package_type', 'measurement_unit']
+        fields = ['product_variation', 'quantity', 'packages_count', 'lot_number', 'package_type', 'measurement_unit']
         widgets = {
+            'product_variation': forms.Select(attrs={'class': 'form-select'}),
             'quantity': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
             'packages_count': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
             'lot_number': forms.TextInput(attrs={'class': 'form-control'}),
@@ -142,13 +130,25 @@ ProductIncomeItemFormSet = inlineformset_factory(
 class InventoryForm(forms.ModelForm):
     class Meta:
         model = Inventory
-        fields = ['product', 'quantity_expected', 'quantity_actual', 'comment']
+        fields = ['movement_type']
+
+class InventoryItemForm(forms.ModelForm):
+    class Meta:
+        model = InventoryItem
+        fields = ['product_variation', 'quantity', 'fact_quantity']
         widgets = {
-            'product': forms.Select(attrs={'class': 'form-select'}),
-            'quantity_expected': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
-            'quantity_actual': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
-            'comment': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
+            'product_variation': forms.Select(attrs={'class': 'form-select'}),
+            'quantity': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
+            'fact_quantity': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
         }
+
+InventoryItemFormSet = inlineformset_factory(
+    Inventory,
+    InventoryItem,
+    form=InventoryItemForm,
+    extra=0,
+    can_delete=True
+)
 
 class BackupSettingsForm(forms.ModelForm):
     class Meta:
@@ -160,15 +160,40 @@ class BackupSettingsForm(forms.ModelForm):
             'backup_location': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
-class SystemParameterForm(forms.ModelForm):
+class SystemParamForm(forms.ModelForm):
     class Meta:
-        model = SystemParameter
-        fields = ['key', 'value', 'description']
+        model = SystemParam
+        fields = ['name', 'parameter']
         widgets = {
-            'key': forms.TextInput(attrs={'class': 'form-control'}),
-            'value': forms.TextInput(attrs={'class': 'form-control'}),
-            'description': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
+            'name': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
+            'parameter': forms.Select(attrs={'class': 'form-select'}),
         }
+    
+    def clean_parameter(self):
+        parameter = self.cleaned_data.get('parameter')
+        
+        # Перевірка на самопосилання при створенні нового параметра
+        # або при редагуванні існуючого
+        if self.instance.pk and parameter and parameter.pk == self.instance.pk:
+            raise forms.ValidationError("Параметр не може посилатися на самого себе")
+        
+        # Перевірка на циклічні посилання
+        if parameter:
+            parent = parameter
+            while parent is not None:
+                # Якщо редагуємо існуючий параметр і його батько вказує назад на нього
+                if self.instance.pk and parent.parameter and parent.parameter.pk == self.instance.pk:
+                    raise forms.ValidationError("Виявлено циклічне посилання між параметрами")
+                parent = parent.parameter
+        
+        # Перевірка, чи батьківський параметр не є дочірнім для поточного
+        if self.instance.pk and parameter:
+            # Отримуємо всі ID дочірніх параметрів
+            children_ids = self.instance.get_all_children_ids()
+            if parameter.pk in children_ids:
+                raise forms.ValidationError("Батьківський параметр не може бути одним із дочірніх параметрів")
+        
+        return parameter
 
 class AddToCartForm(forms.Form):
     quantity = forms.IntegerField(min_value=1, initial=1, widget=forms.NumberInput(
@@ -215,6 +240,72 @@ class ProductFilterForm(forms.Form):
         })
     )
 
+class ProductVariationFilterForm(forms.Form):
+    culture = forms.ModelChoiceField(
+        queryset=Culture.objects.all(), 
+        required=False,
+        empty_label="Всі культури",
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    real_name = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Пошук за справжньою назвою'})
+    )
+    name = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Пошук за назвою'})
+    )
+    lot_number = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Пошук за номером лоту'})
+    )
+    measurement_unit = forms.ModelChoiceField(
+        queryset=MeasurementUnit.objects.all(), 
+        required=False,
+        empty_label="Всі одиниці виміру",
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label="Од. виміру"
+    )   
+    package_type = forms.ModelChoiceField(
+        queryset=PackageType.objects.all(), 
+        required=False,
+        empty_label="Всі типи упаковки",
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label="Тип упаковки"
+    )   
+
+class ProductIncomeFilterForm(forms.Form):
+    culture = forms.ModelChoiceField(
+        queryset=Culture.objects.all(), 
+        required=False,
+        empty_label="Всі культури",
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    real_name = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Пошук за справжньою назвою'})
+    )
+    name = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Пошук за назвою'})
+    )
+    lot_number = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Пошук за номером лоту'})
+    )
+    measurement_unit = forms.ModelChoiceField(
+        queryset=MeasurementUnit.objects.all(), 
+        required=False,
+        empty_label="Всі одиниці виміру",
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )   
+    package_type = forms.ModelChoiceField(
+        queryset=PackageType.objects.all(), 
+        required=False,
+        empty_label="Всі типи упаковки",
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )   
+    
 class ReportForm(forms.Form):
     REPORT_FORMATS = [
         ('csv', 'CSV'),

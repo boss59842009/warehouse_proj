@@ -4,6 +4,7 @@ from django.utils import timezone
 from django.db.models.signals import pre_delete
 from django.dispatch import receiver
 import os
+from django.core.exceptions import ValidationError
     
 
 class PackageType(models.Model):
@@ -147,14 +148,11 @@ class OrderItem(models.Model):
         verbose_name_plural = "Товари у замовленні"
 
 class Inventory(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="Товар")
-    quantity_expected = models.PositiveIntegerField(default=0, verbose_name="Очікувана кількість")
-    quantity_actual = models.PositiveIntegerField(default=0, verbose_name="Фактична кількість")
-    difference = models.IntegerField(default=0, verbose_name="Відхилення")
-    comment = models.TextField(blank=True, null=True, verbose_name="Коментар")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
+    movement_type = models.CharField(max_length=100, default='inventory', verbose_name="Тип накладної")
     performed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, verbose_name="Виконав")
-    
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Оновлено")
+
     def save(self, *args, **kwargs):
         self.difference = self.quantity_actual - self.quantity_expected
         super().save(*args, **kwargs)
@@ -166,6 +164,21 @@ class Inventory(models.Model):
         verbose_name = "Інвентаризація"
         verbose_name_plural = "Інвентаризації"
 
+class InventoryItem(models.Model):
+    inventory = models.ForeignKey(Inventory, on_delete=models.CASCADE, verbose_name="Інвентаризація")
+    product_variation = models.ForeignKey(ProductVariation, on_delete=models.CASCADE, verbose_name="Варіація товару")
+    quantity = models.PositiveIntegerField(default=0, verbose_name="Кількість") 
+    fact_quantity = models.PositiveIntegerField(default=0, verbose_name="Фактична кількість")
+    difference = models.IntegerField(default=0, verbose_name="Відхилення")
+    packages_count = models.PositiveIntegerField(default=0, verbose_name="Кількість упаковок")
+
+    def __str__(self):
+        return f"Інвентаризація {self.inventory.product.name} від {self.inventory.created_at.strftime('%d.%m.%Y')}"
+    
+    class Meta:
+        verbose_name = "Інвентаризація"
+        verbose_name_plural = "Інвентаризації"
+    
 class ProductIncome(models.Model):
     movement_type = models.CharField(max_length=100, default='incoming', verbose_name="Тип накладної")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
@@ -183,7 +196,9 @@ class ProductIncome(models.Model):
         self.save(update_fields=['total_packages_count'])
 
     def __str__(self):
-        return f"Оприбуткування {self.created_at.strftime('%d.%m.%Y')}"
+        if self.created_at:
+            return f"Оприбуткування {self.created_at.strftime('%d.%m.%Y')}"
+        return f"Оприбуткування (без дати)"
     
     class Meta:
         verbose_name = "Прибуткова накладна"
@@ -235,7 +250,48 @@ class SystemParameter(models.Model):
 
 class SystemParam(models.Model):
     name = models.CharField(max_length=100, verbose_name="Назва параметра")
-    parameter = models.ForeignKey('self', on_delete=models.CASCADE, verbose_name="Параметр")
+    parameter = models.ForeignKey('self', on_delete=models.CASCADE, verbose_name="Параметр", 
+                                 null=True, blank=True, related_name='children')
+    has_parent = models.BooleanField(default=False, verbose_name="Має батьківський параметр")
+
+    def get_all_children_ids(self):
+        """Рекурсивно отримати ID всіх дочірніх параметрів"""
+        result = []
+        for child in self.children.all():
+            result.append(child.id)
+            result.extend(child.get_all_children_ids())
+        return result
+
+    def clean(self):
+        # Перевірка на самопосилання
+        if self.parameter == self:
+            raise ValidationError("Параметр не може посилатися на самого себе")
+        
+        # Перевірка на циклічні посилання
+        parent = self.parameter
+        while parent is not None:
+            if parent.parameter == self:
+                raise ValidationError("Виявлено циклічне посилання між параметрами")
+            parent = parent.parameter
+        
+        # Перевірка, чи батьківський параметр не є дочірнім для поточного
+        if self.pk is not None and self.parameter is not None:
+            children_ids = self.get_all_children_ids()
+            if self.parameter.pk in children_ids:
+                raise ValidationError("Батьківський параметр не може бути одним із дочірніх параметрів")
+    
+    def save(self, *args, **kwargs):
+        # Викликаємо clean перед збереженням для валідації
+        self.clean()
+        
+        # Встановлюємо has_parent на основі наявності батьківського параметра
+        if self.parameter is not None:
+            self.has_parent = True
+        else:
+            self.has_parent = False
+            
+        # Викликаємо батьківський метод save
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name
