@@ -3,55 +3,42 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q
-from ..models import ProductIncome, Product, Culture, ProductVariation
+from ..models import ProductIncome, Product, Culture, ProductVariation, Inventory
 from ..forms import InventoryForm, ProductFilterForm, ProductIncomeItemForm, ProductIncomeItemFormSet, ProductIncomeForm, ProductIncomeFilterForm
+from itertools import chain
+from django.db.models import Value, CharField
 
 @login_required
 def movement_list(request):
     """View to display a list of all product movements."""
-    movements = ProductIncome.objects.all().order_by('-created_at')
-    movement_filter_form = ProductIncomeFilterForm()
-    # if request.method == 'GET':
-    #     movement_filter_form = ProductIncomeFilterForm(request.GET)
-    #     if movement_filter_form.is_valid():
-    #         movements = movements.filter(
-    #             Q(culture__name__icontains=movement_filter_form.cleaned_data['culture']) |
-    #             Q(real_name__icontains=movement_filter_form.cleaned_data['real_name']) |
-    #             Q(name__icontains=movement_filter_form.cleaned_data['name']) |
-    #             Q(lot_number__icontains=movement_filter_form.cleaned_data['lot_number']) |
-    #             Q(measurement_unit__name__icontains=movement_filter_form.cleaned_data['measurement_unit']) |
-    #             Q(package_type__name__icontains=movement_filter_form.cleaned_data['package_type'])
-    #         )
-
+    # Додаємо поле для ідентифікації типу моделі
+    product_income_movements = ProductIncome.objects.all().annotate(
+        model_type=Value('product_income', output_field=CharField())
+    )
+    inventory_movements = Inventory.objects.all().annotate(
+        model_type=Value('inventory', output_field=CharField())
+    )
     
-     # Filter by status if provided
+    movement_filter_form = ProductIncomeFilterForm()
+    
+    # Фільтрація
     movement_type = request.GET.get('movement_type', '')
     if movement_type:
-        movements = movements.filter(movement_type=movement_type)
+        product_income_movements = product_income_movements.filter(movement_type=movement_type)
+        inventory_movements = inventory_movements.filter(movement_type=movement_type)
 
     created_at_from = request.GET.get('created_at_from', '')
     if created_at_from:
-        movements = movements.filter(created_at__gte=created_at_from)
-    # # Filter by product if provided
-    # product_id = request.GET.get('product', '')
-    # if product_id:
-    #     try:
-    #         product = Product.objects.get(pk=int(product_id))
-    #         movements = movements.filter(product=product)
-    #     except (Product.DoesNotExist, ValueError):
-    #         pass
+        product_income_movements = product_income_movements.filter(created_at__gte=created_at_from)
+        inventory_movements = inventory_movements.filter(created_at__gte=created_at_from)
     
-    # # Search by document number or comment
-    # search = request.GET.get('search', '')
-    # if search:
-    #     movements = movements.filter(
-    #         Q(document_number__icontains=search) | 
-    #         Q(comment__icontains=search) |
-    #         Q(product__name__icontains=search)
-    #     )
+    # Об'єднуємо queryset за допомогою chain
+    all_movements = list(chain(product_income_movements, inventory_movements))
+    # Сортуємо об'єднаний список
+    all_movements.sort(key=lambda x: x.created_at, reverse=True)
     
-    # Paginate results
-    paginator = Paginator(movements, 20)  # Show 20 items per page
+    # Пагінація
+    paginator = Paginator(all_movements, 20)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
@@ -131,12 +118,19 @@ def product_income_create(request):
     }
     
     return render(request, 'warehouse/movement/income_create_form.html', context)
-# @login_required
-# def inventory_create(request):
-#     """View to create a new inventory."""
-#     if request.method == 'POST':
-#         form = InventoryForm(request.POST)  
-        
+
+
+@login_required
+def product_income_detail(request, pk):
+    """View to display details of a specific product income."""
+    product_income = get_object_or_404(ProductIncome, pk=pk)
+    
+    context = {
+        'product_income': product_income,
+    }
+    
+    return render(request, 'warehouse/movement/product_income_detail.html', context)
+
 #         if form.is_valid():
 #             form.save()
 #             messages.success(request, 'Інвентаризація товару створена успішно.')

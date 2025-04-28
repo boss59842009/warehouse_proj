@@ -135,11 +135,12 @@ class InventoryForm(forms.ModelForm):
 class InventoryItemForm(forms.ModelForm):
     class Meta:
         model = InventoryItem
-        fields = ['product_variation', 'quantity', 'fact_quantity']
+        fields = ['product_variation', 'quantity', 'fact_quantity', 'difference']
         widgets = {
-            'product_variation': forms.Select(attrs={'class': 'form-select'}),
-            'quantity': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
-            'fact_quantity': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
+            'product_variation': forms.Select(attrs={'class': 'form-control'}),
+            'quantity': forms.NumberInput(attrs={'class': 'form-control', 'step': '1'}),
+            'fact_quantity': forms.NumberInput(attrs={'class': 'form-control', 'step': '1'}),
+            'difference': forms.HiddenInput(),
         }
 
 InventoryItemFormSet = inlineformset_factory(

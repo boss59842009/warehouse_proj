@@ -25,7 +25,7 @@
         <!-- Фільтри -->
         <form method="get" action="{% url 'movement_list' %}" id="filterForm">
             <div class="row g-3">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label for="status" class="form-label">Статус</label>
                     <select name="movement_type" id="status" class="form-select">
                         <option value="">Типи руху</option>
@@ -33,12 +33,12 @@
                         <option value="inventory" {% if request.GET.movement_type == 'inventory' %}selected{% endif %}>Інвентаризація</option>
                     </select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label for="date_from" class="form-label">Дата</label>
                     <input type="date" class="form-control" id="date_from" name="created_at_from" value="{{ request.GET.created_at_from }}">
                 </div>
-                <div class="col-md-12 text-end">
-                    <button type="submit" class="btn btn-primary">
+                <div class="col-md-6 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">
                         <i class="fas fa-search me-1"></i> Пошук
                     </button>
                     <a href="{% url 'movement_list' %}" class="btn btn-outline-secondary">
@@ -58,6 +58,7 @@
                         <th>Тип руху</th>
                         <th>Загальна кількість</th>
                         <th>Загальна кількість упаковок</th>
+                        <th>Фактична кількість</th>
                         <th>Дата</th>
                         <th>Виконавець</th>
                         <th>Дії</th>
@@ -74,16 +75,23 @@
                             <span class="badge bg-primary">Інвентаризація</span>
                             {% endif %}
                         </td>
-                        <td>{{ movement.total_quantity }} {{ movement.product.measurement_unit.name }}</td>
-                        <td>{{ movement.total_packages_count }} {{ movement.product.package_type.name }}</td>
+                        <td>{{ movement.total_quantity|default:'-' }} {{ movement.product.measurement_unit.name }}</td>
+                        <td>{{ movement.total_packages_count|default:'-' }} {{ movement.product.package_type.name }}</td>
+                        <td>{{ movement.fact_quantity|default:'-' }} {{ movement.product.measurement_unit.name }}</td>
                         <td>{{ movement.created_at|date:"d.m.Y H:i" }}</td>
                         <td>
                             {{ movement.performed_by.username }}
                         </td>
                         <td>
-                            {% comment %} <a href="{% url 'product_income_detail' pk=movement.id %}" class="btn btn-sm btn-outline-primary">
+                            {% if movement.movement_type == 'inventory' %}
+                            <a href="{% url 'inventory_detail' pk=movement.id %}" class="btn btn-sm btn-outline-primary">
                                 <i class="fas fa-eye"></i>
-                            </a> {% endcomment %}
+                            </a>
+                            {% else %}
+                            <a href="{% url 'product_income_detail' pk=movement.id %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}

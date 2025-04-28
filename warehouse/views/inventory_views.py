@@ -12,10 +12,12 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
 from datetime import datetime
-from ..models import Product, Culture, Inventory, ProductVariation
-from ..forms import InventoryForm, ProductIncomeItemForm, ProductVariationFilterForm, ReportForm, OrderItemForm
+from ..models import Product, Culture, Inventory, ProductVariation, InventoryItem
+from ..forms import InventoryForm, ProductIncomeItemForm, ProductVariationFilterForm, ReportForm, OrderItemForm, InventoryItemForm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from django.http import JsonResponse
+
 
 @login_required
 def cuantity_list(request):
@@ -56,9 +58,6 @@ def cuantity_list(request):
 @login_required
 def product_income_create(request):
     """View to create a new product income record."""
-    from django.http import JsonResponse
-    from warehouse.models import Product, ProductVariation, Culture, PackageType, MeasurementUnit
-
     # Якщо це AJAX-запит для отримання варіацій
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.GET.get('product_id'):
         product_id = request.GET.get('product_id')
@@ -123,9 +122,7 @@ def inventory_detail(request, pk):
 @login_required
 def inventory_create(request):
     """View to create a new inventory record."""
-    from django.http import JsonResponse
-    from warehouse.models import Product, ProductVariation, Culture, PackageType, MeasurementUnit
-
+    
     # Якщо це AJAX-запит для отримання варіацій
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.GET.get('product_id'):
         product_id = request.GET.get('product_id')
@@ -151,22 +148,55 @@ def inventory_create(request):
             return JsonResponse({'error': str(e)}, status=400)
 
     if request.method == 'POST':
-        form = OrderItemForm(request.POST)
+        # Створюємо форму інвентаризації
+        form = InventoryForm(request.POST)
         
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Прибуткова накладна успішно створена.')
-            return redirect('inventory_list')
+        # Створюємо формсет для елементів інвентаризації
+        InventoryItemFormSet = formset_factory(InventoryItemForm, extra=0)
+        formset = InventoryItemFormSet(request.POST, prefix='form')
+        
+        if form.is_valid() and formset.is_valid():
+            # Зберігаємо основну форму інвентаризації
+            inventory = form.save(commit=False)
+            inventory.performed_by = request.user
+            inventory.save()
+            
+            # Зберігаємо елементи інвентаризації
+            for item_form in formset:
+                if item_form.cleaned_data and not item_form.cleaned_data.get('DELETE', False):
+                    item = item_form.save(commit=False)
+                    item.inventory = inventory
+                    
+                    # Зберігаємо різницю між очікуваною та фактичною кількістю
+                    quantity = item_form.cleaned_data.get('quantity', 0)
+                    fact_quantity = item_form.cleaned_data.get('fact_quantity', 0)
+                    item.difference = quantity - fact_quantity
+                    
+                    item.save()
+            
+            messages.success(request, 'Інвентаризацію успішно створено.')
+            return redirect('movement_list')
+        else:
+            # Якщо форма невалідна, виводимо помилки
+            for error in form.non_field_errors():
+                messages.error(request, error)
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{form[field].label}: {error}")
+            
+            # Виводимо помилки формсету
+            for i, form_errors in enumerate(formset.errors):
+                if form_errors:
+                    messages.error(request, f"Помилка в товарі #{i+1}: {form_errors}")
     else:
-        form = OrderItemForm()
+        form = InventoryForm()
+        # Створюємо порожній формсет
+        InventoryItemFormSet = formset_factory(InventoryItemForm, extra=0)
+        formset = InventoryItemFormSet(prefix='form')
     
     # Отримуємо всі товари та культури для відображення в шаблоні
     products = Product.objects.all().prefetch_related('variations', 'productimage_set')
     cultures = Culture.objects.all()
-    
-    # Створюємо formset для товарів у накладній
-    ProductIncomeFormSet = formset_factory(ProductIncomeItemForm, extra=0)
-    formset = ProductIncomeFormSet(prefix='form')
     
     context = {
         'form': form,
@@ -174,37 +204,6 @@ def inventory_create(request):
         'products': products,
         'cultures': cultures,
     }
-    return render(request, 'warehouse/inventory/inventory_form.html', context)
-
-@login_required
-def inventory_update(request, pk):
-    """View to update an existing inventory record."""
-    inventory = get_object_or_404(Inventory, pk=pk)
-    
-    if request.method == 'POST':
-        form = InventoryForm(request.POST, instance=inventory)
-        
-        if form.is_valid():
-            inventory = form.save()
-            
-            # Update product quantity if needed
-            if 'update_product' in request.POST:
-                product = inventory.product
-                product.quantity = inventory.quantity_actual
-                product.save()
-                messages.success(request, f'Кількість товару "{product.name}" оновлено.')
-            
-            messages.success(request, f'Інвентаризацію успішно оновлено.')
-            return redirect('inventory_detail', pk=inventory.pk)
-    else:
-        form = InventoryForm(instance=inventory)
-    
-    context = {
-        'form': form,
-        'inventory': inventory,
-        'title': f'Редагувати інвентаризацію для {inventory.product.name}',
-    }
-    
     return render(request, 'warehouse/inventory/inventory_form.html', context)
 
 @login_required

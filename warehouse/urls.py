@@ -34,7 +34,6 @@ urlpatterns = [
     path('cuantity/', views.cuantity_list, name='cuantity_list'),
     path('inventory/<int:pk>/', views.inventory_detail, name='inventory_detail'),
     path('inventory/new/', views.inventory_create, name='inventory_create'),
-    path('inventory/<int:pk>/edit/', views.inventory_update, name='inventory_update'),
     path('inventory/product/<int:product_id>/', views.product_inventory, name='product_inventory'),
     path('inventory/bulk/', views.bulk_inventory, name='bulk_inventory'),
     path('reports/stock/', views.stock_report, name='stock_report'),
@@ -42,6 +41,7 @@ urlpatterns = [
     # Product Movement URLs
     path('product_income/new/', views.product_income_create, name='product_income_create'),
     path('movements/', views.movement_list, name='movement_list'),
+    path('product_income/<int:pk>/', views.product_income_detail, name='product_income_detail'),
     # path('movements/<int:pk>/', views.movement_detail, name='movement_detail'),
     # path('movements/incoming/', views.incoming_movement, name='incoming_movement'),
     # path('movements/outgoing/', views.outgoing_movement, name='outgoing_movement'),

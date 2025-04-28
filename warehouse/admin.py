@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import (
     PackageType, MeasurementUnit, Culture,
     Product, ProductImage, ProductVariation, ProductVariationImage, Order, OrderItem,
-    Inventory, InventoryItem, ProductIncome, BackupSettings, SystemParam, ProductInventory, ProductIncomeItem
+    Inventory, InventoryItem, ProductIncome, BackupSettings, SystemParam, ProductIncomeItem
 )
 
 class ProductImageInline(admin.TabularInline):
@@ -51,6 +51,5 @@ admin.site.register(SystemParam)
 admin.site.register(ProductImage)
 admin.site.register(ProductVariationImage)
 admin.site.register(OrderItem)
-admin.site.register(ProductInventory)
 admin.site.register(ProductIncome)
 admin.site.register(ProductIncomeItem)

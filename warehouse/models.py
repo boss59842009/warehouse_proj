@@ -148,17 +148,13 @@ class OrderItem(models.Model):
         verbose_name_plural = "Товари у замовленні"
 
 class Inventory(models.Model):
-    movement_type = models.CharField(max_length=100, default='inventory', verbose_name="Тип накладної")
+    movement_type = models.CharField(max_length=100, default='inventory', verbose_name="Тип накладної", null=True, blank=True)
     performed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, verbose_name="Виконав")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Оновлено")
-
-    def save(self, *args, **kwargs):
-        self.difference = self.quantity_actual - self.quantity_expected
-        super().save(*args, **kwargs)
     
     def __str__(self):
-        return f"Інвентаризація {self.product.name} від {self.created_at.strftime('%d.%m.%Y')}"
+        return f"Інвентаризація від {self.created_at.strftime('%d.%m.%Y')}"
     
     class Meta:
         verbose_name = "Інвентаризація"
@@ -170,14 +166,13 @@ class InventoryItem(models.Model):
     quantity = models.PositiveIntegerField(default=0, verbose_name="Кількість") 
     fact_quantity = models.PositiveIntegerField(default=0, verbose_name="Фактична кількість")
     difference = models.IntegerField(default=0, verbose_name="Відхилення")
-    packages_count = models.PositiveIntegerField(default=0, verbose_name="Кількість упаковок")
 
     def __str__(self):
-        return f"Інвентаризація {self.inventory.product.name} від {self.inventory.created_at.strftime('%d.%m.%Y')}"
+        return f"Інвентаризація від {self.inventory.created_at.strftime('%d.%m.%Y')}"
     
     class Meta:
-        verbose_name = "Інвентаризація"
-        verbose_name_plural = "Інвентаризації"
+        verbose_name = "Варіація в інвентаризації"
+        verbose_name_plural = "Варіації в інвентаризації"
     
 class ProductIncome(models.Model):
     movement_type = models.CharField(max_length=100, default='incoming', verbose_name="Тип накладної")
@@ -220,8 +215,6 @@ class ProductIncomeItem(models.Model):
         verbose_name = "Варіація в прибутковій накладній"
         verbose_name_plural = "Варіації в прибутковій накладній"
 
-class ProductInventory(models.Model):
-    pass
 
 class BackupSettings(models.Model):
     auto_backup = models.BooleanField(default=True, verbose_name="Автоматичне резервне копіювання")
