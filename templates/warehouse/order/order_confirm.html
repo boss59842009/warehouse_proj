@@ -5,215 +5,194 @@
 {% block header %}Підтвердження замовлення{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <div class="card shadow-sm border mb-4">
-            <div class="card-header bg-white">
-                <h5 class="card-title mb-0">Підтвердіть замовлення</h5>
-            </div>
-            <div class="card-body">
-                <form method="POST" action="{% url 'order_complete' %}" id="orderForm">
-                    {% csrf_token %}
-                    
-                    <!-- Передаємо дані про вибрані товари -->
-                    <input type="hidden" name="items_json" id="items_json" value="{{ request.session.order_items }}">
-                    
-                    <div class="table-responsive">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th width="10%">Фото</th>
-                                    <th width="15%">Назва справжня</th>
-                                    <th width="15%">Назва</th>
-                                    <th width="10%">Культура</th>
-                                    <th width="14%">Назва імпорту</th>
-                                    <th width="8%">Лот</th>
-                                    <th width="8%">Кількість</th>
-                                    <th width="5%">Дія</th>
-                                </tr>
-                            </thead>
-                            <tbody id="orderItemsTable">
-                                {% for item in order_items %}
-                                <tr data-id="{{ item.variation.id }}" data-price="{{ item.variation.price }}" data-max="{{ item.variation.quantity }}">
-                                    <td>
-                                        {% if item.variation.parent_product.productimage_set.exists %}
-                                            <img src="{{ item.variation.parent_product.productimage_set.first.image.url }}" alt="{{ item.variation.name }}" class="img-thumbnail" style="max-height: 80px;">
-                                        {% else %}
-                                            <div class="text-center text-muted"><i class="fas fa-image fa-2x"></i></div>
-                                        {% endif %}
-                                    </td>
-                                    <td>{{ item.variation.name }}</td>
-                                    <td>{{ item.variation.real_name }}</td>
-                                    <td>{{ item.variation.parent_product.culture.name }}</td>
-                                    <td>{{ item.variation.import_name }}</td>
-                                    <td>{{ item.variation.lot_number }}</td>
-                                    <td>
-                                        <div class="input-group input-group-sm">
-                                            <input type="number" class="form-control item-quantity" value="{{ item.quantity }}" min="1" max="{{ item.variation.quantity }}" style="width: 60px;">
-                                        </div>
-                                        <small class="text-muted">{{ item.variation.product.measurement_unit.name }}</small>
-                                    </td>
-                                    <td>
-                                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteOrderItemModal{{ item.variation.id }}" title="Видалити">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                <!-- Delete Order Item Modal -->
-                                <div class="modal fade" id="deleteOrderItemModal{{ item.variation.id }}" tabindex="-1" aria-labelledby="deleteOrderItemModalLabel{{ item.variation.id }}" aria-hidden="true">
-                                    <div class="modal-dialog">
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h5 class="modal-title" id="deleteOrderItemModalLabel{{ item.variation.id }}">Підтвердження видалення</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрити"></button>
-                                            </div>
-                                            <div class="modal-body">
-                                                <p>Ви впевнені, що хочете видалити товар "{{ item.variation.real_name }}" з замовлення?</p>
-                                                <p class="text-danger"><strong>Увага:</strong> Ця дія не може бути скасована.</p>
-                                            </div>
-                                            <div class="modal-footer">
-                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
-                                                <button type="button" class="btn btn-danger delete-item-btn" data-item-id="{{ item.variation.id }}" data-bs-dismiss="modal">Видалити</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            </tbody>
-                            <tfoot>
-                                <tr>
-                                    <th colspan="7" class="text-end">Загальна кількість:</th>
-                                    <th id="totalQuantity" class="text-start">0</th>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="comment" class="form-label">Коментар до замовлення</label>
-                        <textarea class="form-control" id="comment" name="comment" rows="3"></textarea>
-                    </div>
-                    
-                    <div class="d-flex justify-content-between">
-                        <a href="{% url 'order_create' %}" class="btn btn-outline-secondary">
-                            <i class="fas fa-arrow-left me-1"></i> Назад
-                        </a>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-check me-1"></i> Підтвердити замовлення
-                        </button>
-                    </div>
-                </form>
-            </div>
+<div class="card shadow-sm border mb-4">
+    <div class="card-header bg-white">
+        <h5 class="card-title mb-0">Перевірте та підтвердіть замовлення</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table mb-0" id="orderItemsTable">
+                <thead class="bg-light">
+                    <tr>
+                        <th style="width: 100px;">Фото</th>
+                        <th>Культура</th>
+                        <th>Назва справжня</th>
+                        <th>Назва</th>
+                        <th>Номер лоту</th>
+                        <th>Тип упаковки</th>
+                        <th>Кількість</th>
+                        <th style="width: 50px;">Дія</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in order_items %}
+                    <tr data-id="{{ item.variation.id }}" data-max="{{ item.variation.quantity }}">
+                        <td>
+                            {% if item.variation.parent_product.image %}
+                            <img src="{{ item.variation.parent_product.image.url }}" alt="{{ item.variation.name }}" class="img-thumbnail" style="max-width: 50px;">
+                            {% endif %}
+                        </td>
+                        <td>{{ item.variation.parent_product.culture.name }}</td>
+                        <td>{{ item.variation.real_name }}</td>
+                        <td>{{ item.variation.name }}</td>
+                        <td>{{ item.variation.lot_number }}</td>
+                        <td>{{ item.variation.package_type.name }}</td>
+                        <td>
+                            <div class="input-group input-group-sm">
+                                <button type="button" class="btn btn-outline-secondary decrease-qty">-</button>
+                                <input type="number" class="form-control item-quantity text-center" value="{{ item.quantity }}" min="1" max="{{ item.variation.quantity }}" style="width: 60px;">
+                                <button type="button" class="btn btn-outline-secondary increase-qty">+</button>
+                                <span class="input-group-text">{{ item.variation.measurement_unit.name }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-outline-danger btn-sm remove-item" title="Видалити">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4">
+                            <div class="d-flex flex-column align-items-center py-3">
+                                <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">Товари не знайдені</h5>
+                                <p class="text-muted mb-3">Поверніться назад та виберіть товари</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="bg-light">
+                    <tr>
+                        <th colspan="6" class="text-end">Загальна кількість:</th>
+                        <th id="totalQuantity" class="text-start">0</th>
+                        <th></th>
+                    </tr>
+                </tfoot>
+            </table>
         </div>
     </div>
 </div>
 
+<div class="card shadow-sm border mb-4">
+    <div class="card-header bg-white">
+        <h5 class="card-title mb-0">Коментар до замовлення</h5>
+    </div>
+    <div class="card-body">
+        <textarea class="form-control" id="orderComment" rows="3" placeholder="Додайте коментар до замовлення (необов'язково)">{{ comment }}</textarea>
+    </div>
+</div>
 
-{% block extra_js %}
+<div class="d-flex justify-content-between">
+    <a href="{% url 'order_create' %}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i> Повернутися назад
+    </a>
+    <button type="button" class="btn btn-primary" id="completeOrderBtn">
+        <i class="fas fa-check me-1"></i> Підтвердити замовлення
+    </button>
+</div>
+
+<!-- Форма для відправки даних -->
+<form id="orderForm" method="post" action="{% url 'order_complete' %}" style="display: none;">
+    {% csrf_token %}
+    <input type="hidden" name="items_json" id="items_json" value="{{ items_json }}">
+    <textarea name="comment" id="comment" style="display: none;"></textarea>
+</form>
+{% endblock %}
+
+{% block extra_scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Функція для оновлення загальної суми
-    function updateTotalSum() {
-        let totalSum = 0;
+    const orderForm = document.getElementById('orderForm');
+    const completeOrderBtn = document.getElementById('completeOrderBtn');
+    const orderComment = document.getElementById('orderComment');
+    
+    // Оновлення загальної кількості
+    function updateTotalQuantity() {
         let totalQuantity = 0;
-        const rows = document.querySelectorAll('#orderItemsTable tr');
-        
-        rows.forEach(row => {
-            const quantity = parseInt(row.querySelector('.item-quantity').value);
-            const price = parseFloat(row.dataset.price);
-            const itemTotal = quantity * price;
-            
-            row.querySelector('.item-total').textContent = itemTotal.toFixed(2) + ' грн.';
-            totalSum += itemTotal;
-            totalQuantity += quantity;
+        document.querySelectorAll('.item-quantity').forEach(function(input) {
+            totalQuantity += parseInt(input.value || 0);
         });
-        
-        document.getElementById('totalSum').textContent = totalSum.toFixed(2) + ' грн.';
         document.getElementById('totalQuantity').textContent = totalQuantity;
-        
-        // Оновлюємо JSON для відправки на сервер
-        updateItemsJson();
     }
     
-    // Функція для оновлення JSON з товарами
-    function updateItemsJson() {
+    // Обробка кнопок +/-
+    document.querySelectorAll('.decrease-qty').forEach(button => {
+        button.addEventListener('click', function() {
+            const input = this.parentElement.querySelector('.item-quantity');
+            if (parseInt(input.value) > 1) {
+                input.value = parseInt(input.value) - 1;
+                updateTotalQuantity();
+            }
+        });
+    });
+    
+    document.querySelectorAll('.increase-qty').forEach(button => {
+        button.addEventListener('click', function() {
+            const input = this.parentElement.querySelector('.item-quantity');
+            const max = parseInt(input.closest('tr').dataset.max);
+            if (parseInt(input.value) < max) {
+                input.value = parseInt(input.value) + 1;
+                updateTotalQuantity();
+            }
+        });
+    });
+    
+    // Обробка зміни кількості вручну
+    document.querySelectorAll('.item-quantity').forEach(input => {
+        input.addEventListener('change', function() {
+            const max = parseInt(this.closest('tr').dataset.max);
+            const value = parseInt(this.value);
+            
+            if (value > max) {
+                this.value = max;
+            } else if (value < 1) {
+                this.value = 1;
+            }
+            
+            updateTotalQuantity();
+        });
+    });
+    
+    // Видалення товару
+    document.querySelectorAll('.remove-item').forEach(button => {
+        button.addEventListener('click', function() {
+            const row = this.closest('tr');
+            row.remove();
+            updateTotalQuantity();
+            
+            // Якщо всі товари видалені, повертаємося на сторінку створення
+            if (document.querySelectorAll('#orderItemsTable tbody tr').length === 0) {
+                window.location.href = "{% url 'order_create' %}";
+            }
+        });
+    });
+    
+    // Підтвердження замовлення
+    completeOrderBtn.addEventListener('click', function() {
         const items = [];
-        const rows = document.querySelectorAll('#orderItemsTable tr');
-        
-        rows.forEach(row => {
+        document.querySelectorAll('#orderItemsTable tbody tr').forEach(row => {
+            const id = row.dataset.id;
+            const quantity = row.querySelector('.item-quantity').value;
             items.push({
-                id: row.dataset.id,
-                quantity: row.querySelector('.item-quantity').value
+                id: id,
+                quantity: parseInt(quantity)
             });
         });
         
+        if (items.length === 0) {
+            alert('Будь ласка, додайте хоча б один товар до замовлення');
+            return;
+        }
+        
         document.getElementById('items_json').value = JSON.stringify(items);
-    }
-    
-    // Обробники подій для кнопок +/-
-    document.querySelectorAll('.increase-qty').forEach(button => {
-        button.addEventListener('click', function() {
-            const row = this.closest('tr');
-            const input = row.querySelector('.item-quantity');
-            const maxQty = parseInt(row.dataset.max);
-            
-            if (parseInt(input.value) < maxQty) {
-                input.value = parseInt(input.value) + 1;
-                updateTotalSum();
-            }
-        });
+        document.getElementById('comment').value = orderComment.value;
+        orderForm.submit();
     });
     
-    document.querySelectorAll('.decrease-qty').forEach(button => {
-        button.addEventListener('click', function() {
-            const input = this.closest('tr').querySelector('.item-quantity');
-            
-            if (parseInt(input.value) > 1) {
-                input.value = parseInt(input.value) - 1;
-                updateTotalSum();
-            }
-        });
-    });
-    
-    // Обробник зміни кількості вручну
-    document.querySelectorAll('.item-quantity').forEach(input => {
-        input.addEventListener('change', function() {
-            const row = this.closest('tr');
-            const maxQty = parseInt(row.dataset.max);
-            
-            // Перевіряємо обмеження
-            if (parseInt(this.value) < 1) {
-                this.value = 1;
-            } else if (parseInt(this.value) > maxQty) {
-                this.value = maxQty;
-            }
-            
-            updateTotalSum();
-        });
-    });
-    
-    // Оновлюємо JSON при відправці форми
-    document.getElementById('orderForm').addEventListener('submit', function() {
-        updateItemsJson();
-    });
-    
-    // Додаємо обробник для кнопок видалення
-    document.querySelectorAll('.delete-item-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            const itemId = this.dataset.itemId;
-            
-            // Видаляємо рядок з таблиці
-            const row = document.querySelector(`tr[data-id="${itemId}"]`);
-            if (row) {
-                row.remove();
-                updateTotalSum();
-            }
-        });
-    });
-    
-    // Викликаємо функцію при завантаженні сторінки
-    updateTotalSum();
+    // Початкове оновлення загальної кількості
+    updateTotalQuantity();
 });
 </script>
-{% endblock %}
 {% endblock %}

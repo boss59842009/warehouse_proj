@@ -1,301 +1,233 @@
 {% extends 'warehouse/base.html' %}
 
-{% block title %}{% if order %}Редагування{% else %}Створення{% endif %} замовлення | Складський облік{% endblock %}
+{% block title %}Нове замовлення | Складський облік{% endblock %}
 
-{% block header %}{% if order %}Редагування{% else %}Створення{% endif %} замовлення{% endblock %}
+{% block header %}Нове замовлення{% endblock %}
 
 {% block content %}
-<div class="row">
-        <!-- Секція товарів -->
-        <div class="card shadow-sm border mb-4">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">Товари для замовлення</h5>
-                <button type="button" class="btn btn-primary btn" id="addItemBtn">
-                    <i class="fas fa-plus me-1"></i> Оформити замовлення
-                </button>
-            </div>
-            
-            <!-- Фільтри товарів -->
-            <div class="col-md-12">
-                <div class="card">
-                    <div class="card-body">
-                        <form method="get" action="{% url 'order_create' %}" class="row g-3 w-100">
-                            <!-- Перший ряд фільтрів -->
-                            <div class="col-md-4">
-                                <label for="id_culture" class="form-label">Культура</label>
-                                {{ filter_form.culture }}
-                            </div>
-                            <div class="col-md-4">
-                                <label for="id_real_name" class="form-label">Назва справжня</label>
-                                {{ filter_form.real_name }}
-                            </div>
-                            <div class="col-md-4">
-                                <label for="id_name" class="form-label">Назва</label>
-                                {{ filter_form.name }}
-                            </div>
-                            
-                            <!-- Другий ряд фільтрів -->
-                            <div class="col-md-3">
-                                <label for="id_lot_number" class="form-label">Номер лоту</label>
-                                {{ filter_form.lot_number }}
-                            </div>
-                            <div class="col-md-3">
-                                <label for="id_measurement_unit" class="form-label">Од. виміру</label>
-                                {{ filter_form.measurement_unit }}
-                            </div>
-                            <div class="col-md-3">
-                                <label for="id_package_type" class="form-label">Тип упаковки</label>
-                                {{ filter_form.package_type }}
-                            </div>
-                            <div class="col-md-3 d-flex align-items-end">
-                                <div class="d-flex gap-2 w-100 justify-content-end">
-                                    <button type="submit" class="btn btn-primary mb-0">
-                                        <i class="fas fa-filter me-1"></i> Фільтрувати
-                                    </button>
-                                    <a href="{% url 'order_create' %}" class="btn btn-outline-secondary mb-0">
-                                        <i class="fas fa-times me-1"></i> Скинути
-                                    </a>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
+<!-- Фільтри -->
+<div class="card shadow-sm border mb-4">
+    <div class="card-header bg-white">
+        <h5 class="card-title mb-0">Фільтри</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" id="filterForm">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label for="culture" class="form-label">Культура</label>
+                    <select name="culture" id="culture" class="form-select">
+                        <option value="">Всі культури</option>
+                        {% for culture in cultures %}
+                        <option value="{{ culture.id }}" {% if request.GET.culture == culture.id|stringformat:"s" %}selected{% endif %}>
+                            {{ culture.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="real_name" class="form-label">Назва справжня</label>
+                    <input type="text" class="form-control" id="real_name" name="real_name" value="{{ request.GET.real_name }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="name" class="form-label">Назва</label>
+                    <input type="text" class="form-control" id="name" name="name" value="{{ request.GET.name }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="lot_number" class="form-label">Номер лоту</label>
+                    <input type="text" class="form-control" id="lot_number" name="lot_number" value="{{ request.GET.lot_number }}">
+                </div>
+                <div class="col-md-12 text-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search me-1"></i> Фільтрувати
+                    </button>
+                    <a href="{% url 'order_create' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-1"></i> Скинути
+                    </a>
                 </div>
             </div>
-        </div>
-        <div class="card shadow-sm border">
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table border-bottom mb-0" id="orderItemsTable">
-                        <thead class="bg-light">
-                            <tr>
-                                <tr>
-                                    <th scope="col" style="width: 20px;">#</th>
-                                    <th scope="col" style="width: 100px;">Фото</th>
-                                    <th scope="col" style="width: 200px;">Культура</th>
-                                    <th scope="col"style="width: 150px;">Назва справжня</th>
-                                    <th scope="col" style="width: 20px;">Назва</th>
-                                    <th scope="col" style="width: 150px;">Номер лоту</th>
-                                    <th scope="col" style="width: 150px;">Одиниця виміру</th>
-                                    <th scope="col" style="width: 150px;">Тип упаковки</th>
-                                    <th scope="col" style="width: 150px;">Кількість упаковок</th>
-                                    <th scope="col" style="width: 150px;">Кількість</th>
-                                </tr>
-                            </tr>
-                        </thead>
-                        <tbody id="orderItemsBody">
-                            {% for variation in variations %}
-                            <tr class="order-item" data-id="{{ variation.id }}">
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <div class="form-check me-2">
-                                            <input class="form-check-input item-checkbox" type="checkbox">
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>
-                                    {% if variation.parent_product.productimage_set.exists %}
-                                        <img src="{{ variation.parent_product.productimage_set.first.image.url }}" alt="{{ variation.name }}" class="img-thumbnail" style="max-height: 80px;">
-                                    {% else %}
-                                        <div class="text-center text-muted"><i class="fas fa-image fa-2x"></i></div>
-                                    {% endif %}
-                                </td>
-                                <td>{{ variation.parent_product.culture.name }}</td>
-                                <td>{{ variation.real_name }}</td>
-                                <td>{{ variation.name }}</td>
-                                <td>{{ variation.lot_number }}</td>
-                                <td>{{ variation.measurement_unit.name }}</td>
-                                <td>{{ variation.package_type.name }}</td>
-                                <td>{{ variation.packages_count }}</td>
-                                <td style="width: 150px;">
-                                    <div class="input-group">
-                                        <input type="number" class="form-control form-control-sm" value="{{ variation.quantity }}" min="1" max="{{ variation.quantity }}">
-                                        {% if variation.product.measurement_unit %}
-                                        <span class="input-group-text">{{ variation.product.measurement_unit.name }}</span>
-                                        {% endif %}
-                                    </div>
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="10" class="text-center py-4">
-                                    <div class="d-flex flex-column align-items-center py-3">
-                                        <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
-                                        <h5 class="text-muted">Замовлення не знайдені</h5>
-                                        <p class="text-muted mb-3">Спробуйте змінити параметри пошуку або створіть нове замовлення</p>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}    
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Статистика замовлення -->
-        <div class="card shadow-sm border mb-4">
-            <div class="card-body py-2 px-3">
-                <div class="row align-items-center">
-                    <div class="col-md-8">
-                        <div class="d-flex justify-content-start">
-                            <a href="{% url 'order_list' %}" class="btn btn-outline-secondary btn-sm me-2">
-                                <i class="fas fa-arrow-left me-1"></i> Повернутися до списку
-                            </a>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                    </div>
-                    <div class="col-md-2">
-                        <div class="d-flex align-items-end">
-                            <div class="text-primary me-2">
-                                <i class="fas fa-box fa-lg"></i>
+        </form>
+    </div>
+</div>
+
+<!-- Список товарів -->
+<div class="card shadow-sm border">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">Товари для замовлення</h5>
+        <button type="button" class="btn btn-primary" id="submitBtn" disabled>
+            <i class="fas fa-check me-1"></i> Оформити замовлення
+        </button>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th scope="col" style="width: 20px;">#</th>
+                        <th scope="col" style="width: 100px;">Фото</th>
+                        <th scope="col">Культура</th>
+                        <th scope="col">Назва справжня</th>
+                        <th scope="col">Назва</th>
+                        <th scope="col">Номер лоту</th>
+                        <th scope="col">Одиниця виміру</th>
+                        <th scope="col">Тип упаковки</th>
+                        <th scope="col">Кількість упаковок</th>
+                        <th scope="col">Кількість</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for variation in variations %}
+                    <tr>
+                        <td>
+                            <div class="form-check">
+                                <input class="form-check-input check-item" type="checkbox" value="{{ variation.id }}" id="check-{{ variation.id }}" onclick="handleCheckboxClick(this)">
                             </div>
-                            <div>
-                                <div class="text-muted small">Всього позицій:</div>
-                                <div class="fs-6 fw-bold" id="totalItems">{{ variations|length }}</div>
+                        </td>
+                        <td>
+                            {% if variation.parent_product.productimage_set.exists %}
+                                <img src="{{ variation.parent_product.productimage_set.first.image.url }}" alt="{{ variation.name }}" class="img-thumbnail" style="max-height: 60px;">
+                            {% else %}
+                                <div class="text-center text-muted"><i class="fas fa-image fa-2x"></i></div>
+                            {% endif %}
+                        </td>
+                        <td>{{ variation.parent_product.culture.name }}</td>
+                        <td>{{ variation.parent_product.real_name }}</td>
+                        <td>{{ variation.display_name }}</td>
+                        <td>{{ variation.lot_number }}</td>
+                        <td>{{ variation.measurement_unit.name }}</td>
+                        <td>{{ variation.package_type.name }}</td>
+                        <td>{{ variation.packages_count }}</td>
+                        <td>
+                            <div class="input-group">
+                                <input type="number" class="form-control form-control-sm qty-input" 
+                                       data-id="{{ variation.id }}"
+                                       value="1" 
+                                       min="1" 
+                                       max="{{ variation.quantity }}"
+                                       disabled
+                                       oninput="updateCounters()">
+                                <span class="input-group-text">{{ variation.measurement_unit.name }}</span>
                             </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Пагінація та навігація -->
-        <div class="d-flex justify-content-between align-items-center mt-2">
-            <div class="pagination-controls">
-                <a href="#" class="btn btn-sm btn-outline-secondary me-1" disabled>
-                    <i class="fas fa-chevron-left"></i>
-                </a>
-                <a href="#" class="btn btn-sm btn-primary me-1">1</a>
-                <a href="#" class="btn btn-sm btn-outline-secondary me-1">2</a>
-                <a href="#" class="btn btn-sm btn-outline-secondary">
-                    <i class="fas fa-chevron-right"></i>
-                </a>
-            </div>
-            <div class="text-muted small">
-                Відображення 1-10
-            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center py-4">
+                            <div class="d-flex flex-column align-items-center py-3">
+                                <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">Товари не знайдені</h5>
+                                <p class="text-muted mb-3">Спробуйте змінити параметри пошуку</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
 
+<!-- Підсумки -->
+<div class="d-flex justify-content-between align-items-center mt-3">
+    <div class="text-muted">
+        Всього позицій: <span class="fw-bold">{{ variations|length }}</span>
+    </div>
+    <div class="text-muted">
+        Вибрано позицій: <span class="fw-bold" id="selectedCount">0</span>
+    </div>
+    <div class="text-muted">
+        Загальна кількість: <span class="fw-bold" id="totalQuantity">0</span>
+    </div>
+</div>
+
+<!-- Форма для відправки даних -->
+<form id="orderForm" method="post" action="{% url 'order_confirm' %}">
+    {% csrf_token %}
+    <input type="hidden" name="items_json" id="items_json">
+</form>
+{% endblock %}
+
 {% block extra_scripts %}
+<script src="/static/js/order_form.js"></script>
+<!-- Додатковий інлайн скрипт на випадок, якщо основний не підвантажиться -->
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const orderItemsBody = document.getElementById('orderItemsBody');
-    const addItemBtn = document.getElementById('addItemBtn');
+function handleCheckboxClick(checkbox) {
+    const row = checkbox.closest('tr');
+    const qtyInput = row.querySelector('.qty-input');
     
-    // Додавання товару - змінюємо поведінку кнопки
-    if (addItemBtn) {
-        addItemBtn.addEventListener('click', function() {
-            // Збираємо вибрані товари
-            const selectedItems = [];
-            document.querySelectorAll('#orderItemsBody .form-check-input:checked').forEach(function(checkbox) {
-                const row = checkbox.closest('tr');
-                const itemId = row.dataset.id;
-                const quantityInput = row.querySelector('input[type="number"]');
-                const quantity = quantityInput ? parseInt(quantityInput.value) : 1;
-                
-                selectedItems.push({
-                    id: itemId,
-                    quantity: quantity
-                });
-            });
-            
-            // Створюємо форму для відправки
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = '{% url "order_confirm" %}';  // Змінено на order_confirm
-            
-            // Додаємо CSRF токен
-            const csrfToken = document.createElement('input');
-            csrfToken.type = 'hidden';
-            csrfToken.name = 'csrfmiddlewaretoken';
-            csrfToken.value = '{{ csrf_token }}';
-            form.appendChild(csrfToken);
-            
-            // Додаємо дані про вибрані товари
-            const itemsInput = document.createElement('input');
-            itemsInput.type = 'hidden';
-            itemsInput.name = 'items_json';
-            itemsInput.value = JSON.stringify(selectedItems);
-            form.appendChild(itemsInput);
-            
-            // Додаємо форму до документа і відправляємо
-            document.body.appendChild(form);
-            form.submit();
-        });
+    if (qtyInput) {
+        qtyInput.disabled = !checkbox.checked;
+        if (checkbox.checked) {
+            qtyInput.value = 1;
+        }
     }
     
-    // Обробка кнопок фільтрів
-    document.querySelectorAll('.filter-btn').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            // Знімаємо активний клас з усіх кнопок
-            document.querySelectorAll('.filter-btn').forEach(function(b) {
-                b.classList.remove('active');
-            });
-            
-            // Додаємо активний клас до натиснутої кнопки
-            this.classList.add('active');
-            
-            const filterType = this.dataset.filter;
-            console.log(`Фільтрація за: ${filterType}`);
-            
-            // Тут можна додати логіку фільтрації (буде реалізовано пізніше)
-        });
-    });
+    updateCounters();
+}
+
+function updateCounters() {
+    const checkboxes = document.querySelectorAll('.check-item');
+    const submitBtn = document.getElementById('submitBtn');
+    const selectedCountEl = document.getElementById('selectedCount');
+    const totalQuantityEl = document.getElementById('totalQuantity');
     
-    // Оновлення статистики замовлення
-    function updateOrderStats() {
-        const totalItemsElement = document.getElementById('totalItems');
-        const totalQuantityElement = document.getElementById('totalQuantity');
-        
-        if (!totalItemsElement || !totalQuantityElement) {
-            console.error('Елементи статистики не знайдено!');
-            return;
-        }
-        
-        const checkedItems = document.querySelectorAll('#orderItemsBody .form-check-input:checked').length;
-        let totalQuantity = 0;
-        
-        document.querySelectorAll('#orderItemsBody .form-check-input:checked').forEach(function(checkbox) {
-            const row = checkbox.closest('tr');
-            const quantityInput = row.querySelector('input[type="number"]');
-            if (quantityInput) {
-                totalQuantity += parseInt(quantityInput.value || 0);
+    let selectedCount = 0;
+    let totalQuantity = 0;
+    
+    for (let i = 0; i < checkboxes.length; i++) {
+        if (checkboxes[i].checked) {
+            selectedCount++;
+            
+            const row = checkboxes[i].closest('tr');
+            const qtyInput = row.querySelector('.qty-input');
+            
+            if (qtyInput) {
+                totalQuantity += parseInt(qtyInput.value) || 1;
             }
+        }
+    }
+    
+    selectedCountEl.textContent = selectedCount;
+    totalQuantityEl.textContent = totalQuantity;
+    
+    // Активуємо/деактивуємо кнопку
+    submitBtn.disabled = selectedCount === 0;
+}
+
+// Додаємо обробник для кнопки відправки форми, якщо ще не доданий
+document.addEventListener('DOMContentLoaded', function() {
+    const submitBtn = document.getElementById('submitBtn');
+    if (submitBtn && !submitBtn._hasClickListener) {
+        submitBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            submitBtn._hasClickListener = true;
+            
+            const checkboxes = document.querySelectorAll('.check-item');
+            const selectedItems = [];
+            
+            for (let i = 0; i < checkboxes.length; i++) {
+                if (checkboxes[i].checked) {
+                    const row = checkboxes[i].closest('tr');
+                    const qtyInput = row.querySelector('.qty-input');
+                    
+                    selectedItems.push({
+                        variation_id: checkboxes[i].value,
+                        quantity: parseInt(qtyInput.value) || 1
+                    });
+                }
+            }
+            
+            if (selectedItems.length === 0) {
+                alert('Будь ласка, виберіть хоча б один товар для замовлення.');
+                return;
+            }
+            
+            document.getElementById('items_json').value = JSON.stringify(selectedItems);
+            document.getElementById('orderForm').submit();
         });
-        
-        totalItemsElement.textContent = checkedItems;
-        totalQuantityElement.textContent = totalQuantity;
     }
     
-    // Ініціалізація обробників для рядка товару
-    function initItemRow(row) {
-        const quantityInput = row.querySelector('input[type="number"]');
-        const checkbox = row.querySelector('.form-check-input');
-        
-        if (quantityInput) {
-            quantityInput.addEventListener('change', function() {
-                updateOrderStats();
-            });
-        }
-        
-        if (checkbox) {
-            checkbox.addEventListener('change', function() {
-                updateOrderStats();
-            });
-        }
-    }
-    
-    // Ініціалізуємо існуючі рядки
-    document.querySelectorAll('#orderItemsBody .order-item').forEach(function(row) {
-        initItemRow(row);
-    });
-    
-    // Початкове оновлення статистики
-    updateOrderStats();
+    // Ініціалізуємо лічильники при завантаженні
+    updateCounters();
 });
 </script>
-{% endblock %}
 {% endblock %} 

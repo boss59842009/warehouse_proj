@@ -4,10 +4,10 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.http import HttpResponseRedirect
 from django.urls import reverse
+from django.db.models import Q, F
 from ..models import Culture, Order, OrderItem, Product, ProductVariation
 from ..forms import OrderForm, OrderItemFormSet, AddToCartForm, CartItemForm, CheckoutForm, ProductVariationFilterForm
 import json
-from django.db.models import Q
 
 @login_required
 def order_list(request):
@@ -24,7 +24,6 @@ def order_list(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
-    
     context = {
         'orders': page_obj,
         'current_status': status,
@@ -34,168 +33,182 @@ def order_list(request):
 
 @login_required
 def order_detail(request, pk):
-    """View to display details of a specific order."""
-    order = get_object_or_404(Order, pk=pk)
-    
-    # Ensure users can only view their own orders (except for staff)
-    if not request.user.is_staff and order.user != request.user:
-        messages.error(request, 'У вас немає доступу до цього замовлення.')
-        return redirect('order_list')
+    """View to display order details."""
+    order = get_object_or_404(Order.objects.prefetch_related(
+        'items__product_variation__parent_product__culture',
+        'items__product_variation__measurement_unit',
+        'items__product_variation__package_type',
+        'items__product_variation__parent_product__productimage_set'
+    ), id=pk)
     
     context = {
-        'order': order,
+        'order': order
     }
     
     return render(request, 'warehouse/order/order_detail.html', context)
 
 @login_required
 def order_create(request):
-    """View to create a new order directly."""
-    if request.method == 'POST':
-        # Перевіряємо, чи є дані про товари
-        items_json = request.POST.get('items_json', '')
-        if items_json:
-            try:
-                selected_items = json.loads(items_json)
-                
-                # Перевіряємо наявність товарів перед створенням замовлення
-                for item in selected_items:
-                    variation = get_object_or_404(ProductVariation, id=item['id'])
-                    quantity = int(item['quantity'])
-                    
-                    # Перевіряємо наявність товару
-                    if quantity > variation.quantity:
-                        messages.error(request, f'Недостатня кількість товару "{variation.name}". Доступно: {variation.quantity}.')
-                        return redirect('order_create')
-                
-                # Зберігаємо дані в сесії для використання при підтвердженні
-                request.session['order_items'] = items_json
-                request.session['order_comment'] = request.POST.get('comment', '')
-                
-                # Перенаправляємо на сторінку підтвердження
-                return redirect('order_confirm')
-                
-            except json.JSONDecodeError:
-                messages.error(request, 'Помилка при обробці даних замовлення.')
-        else:
-            messages.error(request, 'Не вибрано жодного товару.')
-    
-    if request.method == 'GET':
-        filter_form = ProductVariationFilterForm(request.GET)
-        if filter_form.is_valid():
-            filter_kwargs = {}
-            if filter_form.cleaned_data['culture']:
-                filter_kwargs['parent_product__culture'] = filter_form.cleaned_data['culture']
-            if filter_form.cleaned_data['real_name']:
-                filter_kwargs['real_name__icontains'] = filter_form.cleaned_data['real_name']
-            if filter_form.cleaned_data['name']:
-                filter_kwargs['import_name__icontains'] = filter_form.cleaned_data['name']
-            if filter_form.cleaned_data['lot_number']:
-                filter_kwargs['lot_number__icontains'] = filter_form.cleaned_data['lot_number']
-            if filter_form.cleaned_data['measurement_unit']:
-                filter_kwargs['measurement_unit'] = filter_form.cleaned_data['measurement_unit']
-            if filter_form.cleaned_data['package_type']:
-                filter_kwargs['package_type'] = filter_form.cleaned_data['package_type']
-
-            variations = ProductVariation.objects.filter(**filter_kwargs)
-    else:
-        variations = ProductVariation.objects.filter(quantity__gt=0)
+    """View to create a new order."""
+    # Get all available cultures for the filter
     cultures = Culture.objects.all()
+    
+    # Get all product variations with their related data
+    variations = ProductVariation.objects.select_related(
+        'parent_product',
+        'parent_product__culture',
+        'measurement_unit',
+        'package_type'
+    ).prefetch_related(
+        'parent_product__productimage_set'
+    ).filter(
+        is_available=True  # Only show available variations
+    ).order_by('parent_product__culture__name', 'parent_product__real_name', 'name')
+    
+    # Apply filters if provided
+    culture_id = request.GET.get('culture')
+    real_name = request.GET.get('real_name')
+    name = request.GET.get('name')
+    lot_number = request.GET.get('lot_number')
+    
+    if culture_id:
+        variations = variations.filter(parent_product__culture_id=culture_id)
+    if real_name:
+        variations = variations.filter(parent_product__real_name__icontains=real_name)
+    if name:
+        variations = variations.filter(
+            Q(name__icontains=name) | 
+            Q(import_name__icontains=name) | 
+            Q(parent_product__real_name__icontains=name)
+        )
+    if lot_number:
+        variations = variations.filter(lot_number__icontains=lot_number)
+    
     context = {
-        'variations': variations,
-        'filter_form': filter_form,
         'cultures': cultures,
+        'variations': variations,
     }
     
     return render(request, 'warehouse/order/order_form.html', context)
 
 @login_required
 def order_confirm(request):
-    """View to confirm an order."""
-    if request.method == 'POST':
-        # Отримуємо дані про вибрані товари
-        items_json = request.POST.get('items_json', '[]')
-        try:
-            selected_items = json.loads(items_json)
-            
-            # Перевіряємо, чи є вибрані товари
-            if not selected_items:
-                messages.error(request, 'Не вибрано жодного товару.')
-                return redirect('order_create')
-            
-            # Отримуємо інформацію про кожен товар
-            order_items = []
-            total_sum = 0
-            
-            for item in selected_items:
-                variation = get_object_or_404(ProductVariation, id=item['id'])
-                quantity = int(item['quantity'])
-                
-                # Перевіряємо наявність товару
-                if quantity > variation.quantity:
-                    messages.error(request, f'Недостатня кількість товару "{variation.name}". Доступно: {variation.quantity}.')
-                    return redirect('order_create')
-                
-                item_total = quantity * variation.price
-                total_sum += item_total
-                
-                order_items.append({
-                    'variation': variation,
-                    'quantity': quantity,
-                    'item_total': item_total,
-                })
-            
-            context = {
-                'order_items': order_items,
-                'total_sum': total_sum,
-                'items_json': items_json,
-                'comment': request.POST.get('comment', ''),
-            }
-            
-            return render(request, 'warehouse/order/order_confirm.html', context)
-            
-        except json.JSONDecodeError:
-            messages.error(request, 'Помилка при обробці даних замовлення.')
-            return redirect('order_create')
+    """View to confirm order details before creation."""
+    if request.method != 'POST':
+        return redirect('order_create')
     
-    # Якщо запит GET, показуємо сторінку підтвердження з даними з сесії
-    items_json = request.session.get('order_items', '[]')
     try:
-        selected_items = json.loads(items_json)
+        items_json = request.POST.get('items_json')
+        if not items_json:
+            raise ValueError("No items selected")
         
-        # Перевіряємо, чи є вибрані товари
-        if not selected_items:
-            messages.error(request, 'Не вибрано жодного товару.')
-            return redirect('order_create')
+        items_data = json.loads(items_json)
+        if not items_data:
+            raise ValueError("No items selected")
         
-        # Отримуємо інформацію про кожен товар
+        # Get all selected variations in one query
+        variation_ids = [item['id'] for item in items_data]
+        variations = ProductVariation.objects.select_related(
+            'parent_product',
+            'parent_product__culture',
+            'measurement_unit',
+            'package_type'
+        ).prefetch_related(
+            'parent_product__productimage_set'
+        ).filter(id__in=variation_ids)
+        
+        # Create a lookup dictionary for quantities
+        quantities = {str(item['id']): item['quantity'] for item in items_data}
+        
+        # Prepare items for display
         order_items = []
-        total_sum = 0
+        total_items = 0
         
-        for item in selected_items:
-            variation = get_object_or_404(ProductVariation, id=item['id'])
-            quantity = int(item['quantity'])
-            
-            item_total = quantity * variation.price
-            total_sum += item_total
+        for variation in variations:
+            quantity = quantities.get(str(variation.id), 0)
+            if quantity > variation.quantity:
+                messages.error(request, f'Недостатньо товару "{variation.name}" (доступно: {variation.quantity} {variation.measurement_unit.name})')
+                return redirect('order_create')
             
             order_items.append({
                 'variation': variation,
                 'quantity': quantity,
-                'item_total': item_total,
             })
+            total_items += quantity
+        
+        # Store data in session for the next step
+        request.session['order_items'] = items_json
         
         context = {
             'order_items': order_items,
-            'total_sum': total_sum,
-            'items_json': items_json,
-            'comment': request.session.get('order_comment', ''),
+            'total_items': total_items,
         }
         
         return render(request, 'warehouse/order/order_confirm.html', context)
         
-    except json.JSONDecodeError:
-        messages.error(request, 'Помилка при обробці даних замовлення.')
+    except (json.JSONDecodeError, ValueError) as e:
+        messages.error(request, 'Помилка при обробці даних замовлення. Будь ласка, спробуйте ще раз.')
+        return redirect('order_create')
+    except Exception as e:
+        messages.error(request, f'Сталася помилка: {str(e)}')
+        return redirect('order_create')
+
+@login_required
+def order_create_final(request):
+    """View to create the order after confirmation."""
+    if request.method != 'POST':
+        return redirect('order_create')
+    
+    try:
+        items_json = request.session.get('order_items')
+        if not items_json:
+            raise ValueError("No items found in session")
+        
+        items_data = json.loads(items_json)
+        if not items_data:
+            raise ValueError("No items to process")
+        
+        # Create the order
+        order = Order.objects.create(
+            status='pending',
+            created_by=request.user
+        )
+        
+        # Get all variations in one query
+        variation_ids = [item['id'] for item in items_data]
+        variations = ProductVariation.objects.select_related(
+            'measurement_unit'
+        ).filter(id__in=variation_ids)
+        variations_dict = {str(var.id): var for var in variations}
+        
+        # Create order items and update stock
+        for item_data in items_data:
+            variation = variations_dict.get(str(item_data['id']))
+            if not variation:
+                continue
+                
+            quantity = item_data['quantity']
+            
+            # Create order item
+            OrderItem.objects.create(
+                order=order,
+                product_variation=variation,
+                quantity=quantity
+            )
+            
+            # Update stock
+            variation.quantity = F('quantity') - quantity
+            variation.save()
+        
+        # Clear session data
+        if 'order_items' in request.session:
+            del request.session['order_items']
+        
+        messages.success(request, f'Замовлення #{order.id} успішно створено!')
+        return redirect('order_detail', pk=order.id)
+        
+    except Exception as e:
+        messages.error(request, f'Помилка при створенні замовлення: {str(e)}')
         return redirect('order_create')
 
 @login_required
@@ -204,15 +217,17 @@ def order_cancel(request, pk):
     order = get_object_or_404(Order, pk=pk)
     
     # Ensure users can only cancel their own orders (except for staff)
-    if not request.user.is_staff and order.user != request.user:
+    if not request.user.is_staff and order.created_by != request.user:
         messages.error(request, 'У вас немає доступу для скасування цього замовлення.')
         return redirect('order_list')
     
     if request.method == 'POST':
         order.status = 'canceled'
+        # Return quantities to variations
         for item in order.items.all():
-            item.product.quantity += item.quantity
-            item.product.save()
+            variation = item.product_variation
+            variation.quantity += item.quantity
+            variation.save()
         order.save()
 
         messages.success(request, f'Замовлення #{order.id} успішно скасовано.')
@@ -245,8 +260,8 @@ def order_complete(request):
         
         # Створюємо нове замовлення
         order = Order.objects.create(
-            user=request.user,
-            status='successful',  # Статус "очікує обробки"
+            created_by=request.user,
+            status='successful',  # Статус "успішно"
             comment=comment,
             total_price=0  # Початкова сума, оновимо пізніше
         )
@@ -269,13 +284,13 @@ def order_complete(request):
             item_price = variation.price
             item_total = quantity * item_price
             total_sum += item_total
-            # Перевіряємо структуру моделі OrderItem і використовуємо правильні назви полів
+            
             OrderItem.objects.create(
                 order=order,
-                product=variation,  # Змінено з product на product_variation
+                product_variation=variation,
                 quantity=quantity,
                 price=item_price,
-                total_price=item_total  # Змінено з total на total_price
+                total_price=item_total
             )
             
             # Зменшуємо кількість товару на складі
@@ -283,7 +298,7 @@ def order_complete(request):
             variation.save()
         
         # Оновлюємо загальну суму замовлення
-        order.total_price = total_sum  # Змінено з total_amount на total_price
+        order.total_price = total_sum
         order.save()
         
         # Очищаємо дані замовлення з сесії
@@ -293,10 +308,9 @@ def order_complete(request):
             del request.session['order_comment']
         
         messages.success(request, f'Замовлення №{order.id} успішно створено!')
-        return redirect('order_detail', pk=order.id)  # Змінено з order_id на pk
+        return redirect('order_detail', pk=order.id)
         
     except json.JSONDecodeError:
-        print(False)
         messages.error(request, 'Помилка при обробці даних замовлення.')
         return redirect('order_create')
     except Exception as e:

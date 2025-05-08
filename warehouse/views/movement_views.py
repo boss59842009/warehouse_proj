@@ -67,22 +67,43 @@ def product_income_create(request):
         for i, choice in enumerate(product_variation_field.widget.choices):
             if choice[0]:  # Пропускаємо порожній варіант
                 try:
-                    product_variation = ProductVariation.objects.select_related('culture').get(pk=choice[0])
+                    # Convert the ModelChoiceIteratorValue to int - make sure we get the id value properly
+                    choice_id = int(str(choice[0]))
+                    product_variation = ProductVariation.objects.select_related('parent_product', 'parent_product__culture', 'package_type', 'measurement_unit').get(pk=choice_id)
                     # Додаємо атрибути data- до опції
                     attrs = {
-                        'data-culture': product_variation.culture.name if product_variation.culture else '',
-                        'data-real-name': product_variation.real_name or '',
-                        'data-name': product_variation.name or ''
+                        'data-culture': product_variation.parent_product.culture.name if product_variation.parent_product and product_variation.parent_product.culture else '',
+                        'data-real-name': product_variation.real_name or (product_variation.parent_product.real_name if product_variation.parent_product else ''),
+                        'data-name': product_variation.name or '',
+                        'data-lot-number': product_variation.lot_number or '',
+                        'data-package-type': product_variation.package_type.id if product_variation.package_type else '',
+                        'data-measurement-unit': product_variation.measurement_unit.id if product_variation.measurement_unit else '',
                     }
                     product_variation_field.widget.choices[i] = (
                         choice[0],
                         choice[1],
                         attrs
                     )
-                except ProductVariation.DoesNotExist:
+                except (ProductVariation.DoesNotExist, ValueError, TypeError, AttributeError) as e:
+                    print(f"Error setting up choice attributes: {e}")
                     pass
     
     if request.method == 'POST':
+        print("POST data:", request.POST)
+        print("POST data keys:", request.POST.keys())
+        
+        # Check if product_variation fields are present
+        product_variation_fields = [key for key in request.POST.keys() if 'product_variation' in key]
+        print("Product variation fields:", product_variation_fields)
+        print("Product variation values:", {key: request.POST.get(key) for key in product_variation_fields})
+        
+        formset = ProductIncomeItemFormSet(request.POST or None)
+        print("Formset errors:", formset.errors)
+        print("Formset non-form errors:", formset.non_form_errors())
+        
+        for i, form in enumerate(formset):
+            print(f"Form {i} errors:", form.errors)
+            
         if formset.is_valid():
             # Зберігаємо основну форму
             income = ProductIncome.objects.create(
@@ -93,23 +114,58 @@ def product_income_create(request):
             # Перевіряємо, що всі елементи мають product_variation
             valid_items = []
             for form in formset:
-                print(form.cleaned_data)
+                print(f"Form cleaned data: {form.cleaned_data}")
                 if form.is_valid() and not form.cleaned_data.get('DELETE'):
                     if form.cleaned_data.get('product_variation'):
                         valid_items.append(form)
             
+            if not valid_items:
+                messages.error(request, "Немає валідних товарів для додавання. Переконайтеся, що ви вибрали варіацію товару.")
+                return redirect('product_income_create')
+            
             # Зберігаємо тільки валідні елементи
             for form in valid_items:
-                item = form.save(commit=False)
-                item.income = income
-                item.save()
+                try:
+                    item = form.save(commit=False)
+                    item.product_income = income
+                    
+                    # Переконуємось, що product_variation існує
+                    variation = form.cleaned_data.get('product_variation')
+                    if variation:
+                        # Перевіряємо чи потрібно оновити поля варіації з форми
+                        if form.cleaned_data.get('lot_number') and not variation.lot_number:
+                            variation.lot_number = form.cleaned_data.get('lot_number')
+                        
+                        if form.cleaned_data.get('package_type') and not variation.package_type:
+                            variation.package_type = form.cleaned_data.get('package_type')
+                            
+                        if form.cleaned_data.get('measurement_unit') and not variation.measurement_unit:
+                            variation.measurement_unit = form.cleaned_data.get('measurement_unit')
+                        
+                        # Зберігаємо варіацію з оновленими полями
+                        variation.save()
+                    
+                    item.save()
+                    print(f"Successfully saved item with product_variation: {item.product_variation_id}")
+                except Exception as e:
+                    print(f"Error saving form: {e}")
+                    messages.error(request, f"Помилка збереження: {e}")
             
             # Оновлюємо загальну кількість та кількість упаковок
             income.total_quantity = sum(item.quantity for item in income.productincomeitem_set.all())
             income.total_packages_count = sum(item.packages_count for item in income.productincomeitem_set.all())
             income.save()
             
+            messages.success(request, "Прибуткова накладна успішно створена.")
             return redirect('movement_list')
+        else:
+            print(f"Formset errors: {formset.errors}")
+            for i, form in enumerate(formset):
+                if form.errors:
+                    print(f"Form {i} errors: {form.errors}")
+            messages.error(request, "Будь ласка, перевірте правильність заповнення форми.")
+    else:
+        formset = ProductIncomeItemFormSet()
     
     context = {
         'formset': formset,

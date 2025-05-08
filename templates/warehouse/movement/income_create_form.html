@@ -24,8 +24,11 @@
             </div>
             
             <div class="card shadow-sm border mb-4">
-                <div class="card-header bg-white">
+                <div class="card-header d-flex justify-content-between bg-white">
                     <h5 class="mb-0">Товари в накладній</h5>
+                    <button type="button" id="add-new-variation" class="btn btn-sm btn-primary" style="display: none;">
+                        <i class="fas fa-plus me-1"></i> Додати нову варіацію
+                    </button>
                 </div>
                 <div class="card-body">
                     <div id="items-formset">
@@ -36,47 +39,44 @@
                                     <th>Культура</th>
                                     <th>Назва справжня</th>
                                     <th>Назва</th>
-                                    <th>Кількість</th>
-                                    <th>Кількість упаковок</th>
                                     <th>Номер лоту</th>
-                                    <th>Тип упаковки</th>
                                     <th>Одиниця виміру</th>
+                                    <th>Тип упаковки</th>
+                                    <th>Кількість упаковок</th>
                                     <th>Дії</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for form in formset.forms %}
-                                <tr class="formset-row">
+                                <tr class="formset-row" data-form-index="{{ forloop.counter0 }}">
                                     <td>
-                                        {{ form.product_variation }}
-                                        {% if form.product_variation.errors %}
-                                        <div class="text-danger small mt-1">{{ form.product_variation.errors }}</div>
-                                        {% endif %}
-                                        {{ form.id }}
+                                        <div style="display: none;">
+                                            {{ form.product_variation }}
+                                            {% if form.product_variation.errors %}
+                                            <div class="text-danger small mt-1">{{ form.product_variation.errors }}</div>
+                                            {% endif %}
+                                            {{ form.id }}
+                                        </div>
                                         <div class="culture-display mt-1"></div>
                                     </td>
                                     <td>
                                         <div class="real-name-display mt-1"></div>
                                     </td>
                                     <td>
-                                        <div class="name-display"></div>
-                                    </td>
-                                    <td>
-                                        {{ form.quantity }}
-                                        {% if form.quantity.errors %}
-                                        <div class="text-danger small mt-1">{{ form.quantity.errors }}</div>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {{ form.packages_count }}
-                                        {% if form.packages_count.errors %}
-                                        <div class="text-danger small mt-1">{{ form.packages_count.errors }}</div>
-                                        {% endif %}
+                                        <div class="name-display">
+                                            <input type="text" class="form-control variation-name-input" placeholder="Введіть назву варіації">
+                                        </div>
                                     </td>
                                     <td>
                                         {{ form.lot_number }}
                                         {% if form.lot_number.errors %}
                                         <div class="text-danger small mt-1">{{ form.lot_number.errors }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {{ form.measurement_unit }}
+                                        {% if form.measurement_unit.errors %}
+                                        <div class="text-danger small mt-1">{{ form.measurement_unit.errors }}</div>
                                         {% endif %}
                                     </td>
                                     <td>
@@ -86,9 +86,9 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {{ form.measurement_unit }}
-                                        {% if form.measurement_unit.errors %}
-                                        <div class="text-danger small mt-1">{{ form.measurement_unit.errors }}</div>
+                                        {{ form.packages_count }}
+                                        {% if form.packages_count.errors %}
+                                        <div class="text-danger small mt-1">{{ form.packages_count.errors }}</div>
                                         {% endif %}
                                     </td>
                                     <td>
@@ -176,30 +176,31 @@
 <template id="empty-form-template">
     <tr class="formset-row">
         <td>
-            {{ formset.empty_form.product_variation }}
-            {{ formset.empty_form.id }}
+            <div style="display: none;">
+                {{ formset.empty_form.product_variation }}
+                {{ formset.empty_form.id }}
+            </div>
             <div class="culture-display mt-1"></div>
         </td>
         <td>
             <div class="real-name-display mt-1"></div>
         </td>
         <td>
-            <div class="name-display"></div>
-        </td>
-        <td>
-            {{ formset.empty_form.quantity }}
-        </td>
-        <td>
-            {{ formset.empty_form.packages_count }}
+            <div class="name-display">
+                <input type="text" class="form-control variation-name-input" placeholder="Введіть назву варіації">
+            </div>
         </td>
         <td>
             {{ formset.empty_form.lot_number }}
         </td>
         <td>
+            {{ formset.empty_form.measurement_unit }}
+        </td>
+        <td>
             {{ formset.empty_form.package_type }}
         </td>
         <td>
-            {{ formset.empty_form.measurement_unit }}
+            {{ formset.empty_form.packages_count }}
         </td>
         <td>
             <button type="button" class="btn btn-sm btn-danger remove-row">
@@ -216,554 +217,341 @@
         const selectedItemsTable = document.getElementById('selected-items-table').querySelector('tbody');
         const formsetManagement = document.querySelector('#items-formset').querySelector('input[name$="TOTAL_FORMS"]');
         const emptyFormTemplate = document.getElementById('empty-form-template');
+        const addNewVariationBtn = document.getElementById('add-new-variation');
         
         // Використовуємо існуючі поля фільтрації
         const searchField = document.getElementById('product-search');
         const realNameField = document.getElementById('product-search-real-name');
         const cultureField = document.getElementById('product-search-culture');
         
-        console.log('Поля фільтрації:', {
-            searchField: searchField ? searchField.id : 'не знайдено',
-            realNameField: realNameField ? realNameField.id : 'не знайдено',
-            cultureField: cultureField ? cultureField.id : 'не знайдено'
-        });
+        // Для відстеження вибраного продукту та варіацій
+        let selectedProductId = null;
+        const selectedVariations = new Set();
+        
+        // Ініціалізація існуючих рядків
+        function initializeExistingRows() {
+            const rows = selectedItemsTable.querySelectorAll('.formset-row');
+            
+            if (rows.length > 0) {
+                rows.forEach(row => {
+                    const variationSelect = row.querySelector('select[name$="product_variation"]');
+                    if (variationSelect && variationSelect.value) {
+                        const selectedOption = variationSelect.options[variationSelect.selectedIndex];
+                        
+                        // Шукаємо product_id через data-атрибути або через checkbox
+                        let productId = null;
+                        for (const option of variationSelect.options) {
+                            if (option.value === variationSelect.value) {
+                                // Отримуємо ID продукту з опцій selects
+                                const parentProductCheckbox = productsTable.querySelector(`input.item-checkbox[data-variation-id="${option.value}"]`);
+                                if (parentProductCheckbox) {
+                                    productId = parentProductCheckbox.value;
+                                } else {
+                                    // Пошук через ID продукту
+                                    const productRow = productsTable.querySelector(`tr[data-id]`);
+                                    if (productRow) productId = productRow.dataset.id;
+                                }
+                                break;
+                            }
+                        }
+                        
+                        if (productId) {
+                            // Зберігаємо ID вибраного продукту
+                            selectedProductId = productId;
+                            // Додаємо ID варіації до списку вибраних
+                            selectedVariations.add(parseInt(variationSelect.value));
+                            
+                            // Оновлюємо відображення даних
+                            updateRowDisplayFromVariation(row, variationSelect);
+                        }
+                    }
+                });
+                
+                // Якщо є вибраний продукт, активуємо кнопку додавання варіації
+                if (selectedProductId) {
+                    addNewVariationBtn.style.display = 'block';
+                    updateProductCheckboxes();
+                }
+            }
+        }
+        
+        // Функція оновлення даних з варіації
+        function updateRowDisplayFromVariation(row, variationSelect) {
+            if (!variationSelect || !variationSelect.value) return;
+            
+            // Ідентифікатор варіації
+            const variationId = variationSelect.value;
+            
+            // Знаходимо варіацію в селекті
+            const selectedOption = variationSelect.options[variationSelect.selectedIndex];
+            
+            // Отримуємо продукт, до якого належить варіація
+            let productId = null;
+            let productName = '';
+            let cultureName = '';
+            
+            // Знаходимо product у таблиці товарів за checkbox
+            const checkbox = productsTable.querySelector(`input.item-checkbox[value="${selectedProductId}"]`);
+            if (checkbox) {
+                const productRow = checkbox.closest('tr');
+                productName = productRow.querySelector('td:nth-child(3)').textContent.trim();
+                cultureName = productRow.querySelector('td:nth-child(4)').textContent.trim();
+            }
+            
+            // Встановлюємо дані в відповідні елементи
+            const cultureDisplay = row.querySelector('.culture-display');
+            const realNameDisplay = row.querySelector('.real-name-display');
+            const nameDisplay = row.querySelector('.name-display');
+            
+            if (cultureDisplay) cultureDisplay.textContent = cultureName;
+            if (realNameDisplay) realNameDisplay.textContent = productName;
+            if (nameDisplay) nameDisplay.textContent = selectedOption.textContent;
+        }
         
         // Функція для фільтрації товарів
         function filterProducts() {
-            console.log('Виконується фільтрація...');
-            
             const searchText = searchField ? searchField.value.toLowerCase() : '';
-            const realNameValue = realNameField ? realNameField.value.toLowerCase() : '';
-            const cultureValue = cultureField ? cultureField.value : '';
-            
-            console.log('Значення фільтрів:', { searchText, realNameValue, cultureValue });
+            const realNameText = realNameField ? realNameField.value.toLowerCase() : '';
+            const cultureId = cultureField ? cultureField.value : '';
             
             const rows = productsTable.querySelectorAll('tr');
             
             rows.forEach(row => {
-                // Отримуємо текст з комірок таблиці
-                const productNameCell = row.querySelector('td:nth-child(3) a');
+                const productNameCell = row.querySelector('td:nth-child(3)');
                 const cultureCell = row.querySelector('td:nth-child(4)');
                 
                 const productName = productNameCell ? productNameCell.textContent.toLowerCase() : '';
-                const cultureName = cultureCell ? cultureCell.textContent.toLowerCase() : '';
-                
-                // Отримуємо дані з атрибутів
-                const cultureId = row.getAttribute('data-culture-id') || '';
-                
-                console.log('Рядок:', { 
-                    productName, 
-                    cultureName, 
-                    cultureId 
-                });
+                const culture = row.getAttribute('data-culture-id') || '';
                 
                 let showRow = true;
                 
                 // Фільтр за пошуковим запитом
                 if (searchText && !productName.includes(searchText)) {
                     showRow = false;
-                    console.log('Не пройшов фільтр пошуку');
                 }
                 
-                // Фільтр за справжньою назвою (тепер використовуємо текстовий пошук)
-                if (realNameValue && !productName.includes(realNameValue)) {
+                // Фільтр за справжньою назвою
+                if (realNameText && !productName.includes(realNameText)) {
                     showRow = false;
-                    console.log('Не пройшов фільтр справжньої назви');
                 }
                 
                 // Фільтр за культурою
-                if (cultureValue && cultureValue !== '') {
-                    if (cultureId !== cultureValue) {
-                        showRow = false;
-                        console.log('Не пройшов фільтр культури');
-                    }
+                if (cultureId && cultureId !== '' && culture !== cultureId) {
+                    showRow = false;
                 }
                 
-                console.log('Показати рядок:', showRow);
                 row.style.display = showRow ? '' : 'none';
             });
         }
         
-        // Додаємо обробники подій для полів фільтрації
-        if (searchField) {
-            console.log('Додаємо обробник для пошуку');
-            searchField.addEventListener('input', function() {
-                console.log('Пошук змінено:', this.value);
-                filterProducts();
-            });
-        }
+        // Встановлюємо обробники подій для полів фільтрації
+        if (searchField) searchField.addEventListener('input', filterProducts);
+        if (realNameField) realNameField.addEventListener('input', filterProducts);
+        if (cultureField) cultureField.addEventListener('change', filterProducts);
         
-        if (realNameField) {
-            console.log('Додаємо обробник для справжньої назви');
-            realNameField.addEventListener('input', function() {
-                console.log('Справжня назва змінена:', this.value);
-                filterProducts();
-            });
-        }
-        
-        if (cultureField) {
-            console.log('Додаємо обробник для культури');
-            cultureField.addEventListener('change', function() {
-                console.log('Культура змінена:', this.value);
-                filterProducts();
-            });
-        }
-        
-        // Викликаємо фільтрацію при завантаженні сторінки
-        filterProducts();
-        
-        // Масив для зберігання варіацій товарів
-        const productVariations = {};
-        // Масив для відстеження вибраних товарів
-        const selectedProducts = new Set();
-        // Об'єкт для збереження змінених даних варіацій
-        const variationData = {};
-        
-        // Завантажуємо всі варіації товарів при завантаженні сторінки
-        {% for product in products %}
-            productVariations[{{ product.id }}] = [
-                {% for variation in product.variations.all %}
-                    {
-                        id: {{ variation.id }},
-                        name: "{{ variation.name|default:'Основна варіація' }}",
-                        real_name: "{{ product.real_name|default:'' }}",
-                        lot_number: "{{ variation.lot_number|default:'' }}",
-                        package_type: {% if variation.package_type %}{{ variation.package_type.id }}{% else %}null{% endif %},
-                        measurement_unit: {% if variation.measurement_unit %}{{ variation.measurement_unit.id }}{% else %}null{% endif %},
-                        product_id: {{ product.id }},
-                        product_name: "{{ product.real_name }}",
-                        culture: "{{ product.culture.name }}",
-                        culture_id: {{ product.culture.id }}
-                    },
-                {% endfor %}
-            ];
-        {% endfor %}
-        
-        // Функція для завантаження варіацій товару через AJAX
-        function loadProductVariations(productId) {
-            if (productVariations[productId]) {
-                // Якщо варіації вже завантажені, використовуємо їх
-                return Promise.resolve(productVariations[productId]);
-            }
+        // Оновлення стану чекбоксів товарів
+        function updateProductCheckboxes() {
+            const checkboxes = productsTable.querySelectorAll('.item-checkbox');
             
-            // Інакше завантажуємо через AJAX
-            return fetch(`/warehouse/product-income-create/?product_id=${productId}`, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-                .then(response => response.json())
-                .then(data => {
-                    // Зберігаємо отримані варіації
-                    productVariations[productId] = data.variations;
-                    return data.variations;
-                })
-                .catch(error => {
-                    console.error('Помилка завантаження варіацій:', error);
-                    return [];
-                });
-        }
-        
-        // Функція для додавання нового рядка
-        function addEmptyRow() {
-            const totalForms = parseInt(formsetManagement.value);
-            const newRow = emptyFormTemplate.content.cloneNode(true);
-            
-            // Замінюємо префікс __prefix__ на поточний індекс
-            const elements = newRow.querySelectorAll('input, select');
-            elements.forEach(element => {
-                if (element.name) {
-                    element.name = element.name.replace('__prefix__', totalForms);
-                    element.id = element.id.replace('__prefix__', totalForms);
-                }
-                if (element.id) {
-                    element.id = element.id.replace('__prefix__', totalForms);
-                }
-            });
-            
-            // Додаємо атрибут data-form-index для відстеження індексу форми
-            const rowElement = newRow.querySelector('.formset-row');
-            rowElement.setAttribute('data-form-index', totalForms);
-            rowElement.setAttribute('data-product-id', '');
-            
-            // Додаємо елемент для відображення real_name
-            const variationCell = rowElement.querySelector('td:first-child');
-            const realNameDisplay = document.createElement('div');
-            realNameDisplay.className = 'real-name-display mt-1';
-            variationCell.appendChild(realNameDisplay);
-            
-            // Додаємо рядок до таблиці
-            selectedItemsTable.appendChild(newRow);
-            
-            // Оновлюємо лічильник форм
-            formsetManagement.value = totalForms + 1;
-            
-            // Додаємо обробники подій для збереження змін
-            setupInputChangeHandlers(rowElement, totalForms);
-            
-            // Повертаємо останній доданий рядок
-            return selectedItemsTable.lastElementChild;
-        }
-        
-        // Функція для налаштування обробників подій для збереження змін
-        function setupInputChangeHandlers(row, formIndex) {
-            const inputs = row.querySelectorAll('input, select');
-            inputs.forEach(input => {
-                input.addEventListener('change', function() {
-                    // Зберігаємо змінені дані
-                    if (!variationData[formIndex]) {
-                        variationData[formIndex] = {};
+            checkboxes.forEach(checkbox => {
+                const productId = checkbox.value;
+                
+                if (selectedProductId) {
+                    // Якщо це вибраний продукт, відмічаємо чекбокс
+                    if (productId === selectedProductId) {
+                        checkbox.checked = true;
+                    } else {
+                        // Інші продукти деактивуємо
+                        checkbox.checked = false;
+                        checkbox.disabled = true;
                     }
-                    
-                    // Отримуємо ім'я поля без префіксу форми
-                    const fieldName = input.name.split('-').pop();
-                    variationData[formIndex][fieldName] = input.value;
-                });
+                } else {
+                    // Якщо немає вибраного продукту, всі чекбокси доступні
+                    checkbox.disabled = false;
+                }
             });
         }
         
-        // Обробник для вибору товару
+        // Обробник події вибору продукту
         productsTable.addEventListener('change', function(e) {
             if (e.target.classList.contains('item-checkbox')) {
                 const checkbox = e.target;
-                const row = checkbox.closest('tr');
+                const productRow = checkbox.closest('tr');
                 const productId = checkbox.value;
-                const productName = row.dataset.name;
                 
                 if (checkbox.checked) {
-                    selectedProducts.add(productId);
+                    // Встановлюємо вибраний продукт
+                    selectedProductId = productId;
                     
-                    // Завантажуємо варіації товару, якщо вони ще не завантажені
-                    if (!productVariations[productId]) {
-                        loadProductVariations(productId)
-                            .then(variations => {
-                                if (variations && variations.length > 0) {
-                                    // Додаємо кожну варіацію як окремий рядок
-                                    variations.forEach(variation => {
-                                        addVariationRow(productId, productName, variation);
-                                    });
-                                } else {
-                                    // Якщо варіацій немає, додаємо порожній рядок
-                                    addEmptyProductRow(productId, productName);
-                                }
-                            });
-                    } else {
-                        // Використовуємо вже завантажені варіації
-                        if (productVariations[productId] && productVariations[productId].length > 0) {
-                            // Додаємо кожну варіацію як окремий рядок
-                            productVariations[productId].forEach(variation => {
-                                addVariationRow(productId, productName, variation);
-                            });
-                        } else {
-                            // Якщо варіацій немає, додаємо порожній рядок
-                            addEmptyProductRow(productId, productName);
-                        }
-                    }
+                    // Показуємо кнопку додавання варіації
+                    addNewVariationBtn.style.display = 'block';
+                    
+                    // Отримуємо дані продукту
+                    const productName = productRow.querySelector('td:nth-child(3)').textContent.trim();
+                    const cultureName = productRow.querySelector('td:nth-child(4)').textContent.trim();
+                    
+                    // Додаємо рядок з варіацією
+                    addNewVariationRow(productId, productName, cultureName);
                 } else {
-                    selectedProducts.delete(productId);
-                    
-                    // Видаляємо всі рядки з варіаціями цього товару
-                    const rows = selectedItemsTable.querySelectorAll(`.formset-row[data-product-id="${productId}"]`);
-                    rows.forEach(row => {
-                        const deleteCheckbox = row.querySelector('input[name$="DELETE"]');
-                        if (deleteCheckbox) {
-                            deleteCheckbox.checked = true;
-                            row.style.display = 'none';
-                        } else {
-                            row.remove();
-                        }
-                        
-                        // Видаляємо збережені дані для цього рядка
-                        const formIndex = row.getAttribute('data-form-index');
-                        if (formIndex && variationData[formIndex]) {
-                            delete variationData[formIndex];
-                        }
-                    });
+                    // Скасовуємо вибір продукту
+                    removeAllProductVariations(productId);
+                    selectedProductId = null;
+                    addNewVariationBtn.style.display = 'none';
                 }
+                
+                // Оновлюємо стан чекбоксів
+                updateProductCheckboxes();
             }
         });
         
-        // Функція для додавання порожнього рядка для товару без варіацій
-        function addEmptyProductRow(productId, productName) {
-            const newRow = addEmptyRow();
-            newRow.setAttribute('data-product-id', productId);
+        // Додавання нового рядка з варіацією
+        function addNewVariationRow(productId, productName, cultureName) {
+            // Клонуємо шаблон
+            const newRow = document.importNode(emptyFormTemplate.content, true).querySelector('tr');
             
+            // Встановлюємо індекс формсета
+            const formIndex = parseInt(formsetManagement.value);
+            formsetManagement.value = formIndex + 1;
+            
+            // Заміняємо __prefix__ на реальний індекс
+            newRow.innerHTML = newRow.innerHTML.replace(/__prefix__/g, formIndex);
+            newRow.setAttribute('data-form-index', formIndex);
+            
+            // Знаходимо селект варіації
             const variationSelect = newRow.querySelector('select[name$="product_variation"]');
             
-            // Шукаємо опцію для основного товару
-            for (let i = 0; i < variationSelect.options.length; i++) {
-                const option = variationSelect.options[i];
-                if (option.textContent.includes(productName)) {
-                    option.selected = true;
-                    break;
-                }
-            }
-            
-            // Відображаємо real_name
-            updateRealNameDisplay(newRow, productName);
-            
-            // Встановлюємо початкові значення для кількості
-            const quantityInput = newRow.querySelector('input[name$="quantity"]');
-            const packagesInput = newRow.querySelector('input[name$="packages_count"]');
-            if (quantityInput) quantityInput.value = "1";
-            if (packagesInput) packagesInput.value = "1";
-            
-            // Зберігаємо початкові значення
-            const formIndex = newRow.getAttribute('data-form-index');
-            if (formIndex && variationSelect) {
-                variationData[formIndex] = {
-                    product_variation: variationSelect.value,
-                    quantity: "1",
-                    packages_count: "1",
-                    lot_number: "",
-                    package_type: "",
-                    measurement_unit: ""
-                };
-            }
-        }
-        
-        // Функція для оновлення відображення real_name
-        function updateRealNameDisplay(row, realName) {
-            const realNameDisplay = row.querySelector('.real-name-display');
-            if (realNameDisplay) {
-                realNameDisplay.textContent = realName;
-            }
-        }
-        
-        // Функція для додавання варіації
-        function addVariationRow(productId, productName, variation) {
-            const newRow = addEmptyRow();
-            newRow.setAttribute('data-product-id', productId);
-            
-            // Встановлюємо значення полів
-            const variationSelect = newRow.querySelector('select[name$="product_variation"]');
-            const quantityInput = newRow.querySelector('input[name$="quantity"]');
-            const packagesInput = newRow.querySelector('input[name$="packages_count"]');
-            const lotInput = newRow.querySelector('input[name$="lot_number"]');
-            const packageTypeSelect = newRow.querySelector('select[name$="package_type"]');
-            const unitSelect = newRow.querySelector('select[name$="measurement_unit"]');
-            
-            // Перевіряємо, чи існує елемент variationSelect перед використанням
             if (variationSelect) {
-                // Встановлюємо варіацію
+                // Встановлюємо першу доступну варіацію
+                let availableOption = null;
+                
                 for (let i = 0; i < variationSelect.options.length; i++) {
                     const option = variationSelect.options[i];
-                    if (option.value == variation.id) {
-                        option.selected = true;
+                    if (option.value && !selectedVariations.has(parseInt(option.value))) {
+                        availableOption = option;
                         break;
                     }
                 }
+                
+                if (availableOption) {
+                    // Вибираємо цю опцію
+                    availableOption.selected = true;
+                    selectedVariations.add(parseInt(availableOption.value));
+                }
             }
             
-            // Оновлюємо відображення даних у форматі таблиці
-            const cultureTd = newRow.querySelector('.culture-display');
-            const realNameTd = newRow.querySelector('.real-name-display');
-            const nameTd = newRow.querySelector('.name-display');
+            // Встановлюємо дані в відображення
+            const cultureDisplay = newRow.querySelector('.culture-display');
+            const realNameDisplay = newRow.querySelector('.real-name-display');
             
-            // Оновлюємо відображення культури, справжньої назви та назви
-            if (cultureTd) cultureTd.textContent = variation.culture || '';
-            if (realNameTd) realNameTd.textContent = variation.real_name || '';
-            if (nameTd) nameTd.textContent = variation.name || '';
+            if (cultureDisplay) cultureDisplay.textContent = cultureName;
+            if (realNameDisplay) realNameDisplay.textContent = productName;
             
-            // Перевіряємо наявність інших елементів перед встановленням значень
-            if (lotInput && variation.lot_number) {
-                lotInput.value = variation.lot_number;
+            // Додаємо обробник для поля назви варіації
+            const variationNameInput = newRow.querySelector('.variation-name-input');
+            if (variationNameInput) {
+                variationNameInput.addEventListener('input', function() {
+                    // Тут можемо додати логіку для збереження назви варіації
+                    const value = this.value.trim();
+                    // Можемо додати AJAX запит для оновлення назви варіації в базі даних
+                });
             }
             
-            if (packageTypeSelect && variation.package_type) {
-                packageTypeSelect.value = variation.package_type;
-            }
-            
-            if (unitSelect && variation.measurement_unit) {
-                unitSelect.value = variation.measurement_unit;
-            }
-            
-            // Встановлюємо початкові значення для кількості
-            if (quantityInput) quantityInput.value = "1";
-            if (packagesInput) packagesInput.value = "1";
-            
-            // Зберігаємо початкові значення
-            const formIndex = newRow.getAttribute('data-form-index');
-            if (formIndex) {
-                variationData[formIndex] = {
-                    product_variation: variation.id,
-                    quantity: "1",
-                    packages_count: "1",
-                    lot_number: variation.lot_number || "",
-                    package_type: variation.package_type || "",
-                    measurement_unit: variation.measurement_unit || ""
-                };
-            }
+            // Додаємо рядок до таблиці
+            selectedItemsTable.appendChild(newRow);
         }
         
-        // Перевіряємо існуючі рядки і встановлюємо їх приналежність до товарів
-        function initializeExistingRows() {
+        // Видалення всіх варіацій продукту
+        function removeAllProductVariations(productId) {
             const rows = selectedItemsTable.querySelectorAll('.formset-row');
-            rows.forEach((row, index) => {
-                // Додаємо атрибут data-form-index
-                row.setAttribute('data-form-index', index);
-                
-                // Додаємо обробники подій для збереження змін
-                setupInputChangeHandlers(row, index);
-                
-                // Додаємо елемент для відображення real_name, якщо його ще немає
-                if (!row.querySelector('.real-name-display')) {
-                    const variationCell = row.querySelector('td:first-child');
-                    const realNameDisplay = document.createElement('div');
-                    realNameDisplay.className = 'real-name-display mt-1';
-                    variationCell.appendChild(realNameDisplay);
-                }
-                
+            
+            rows.forEach(row => {
                 const variationSelect = row.querySelector('select[name$="product_variation"]');
                 if (variationSelect && variationSelect.value) {
-                    // Шукаємо товар, якому належить ця варіація
-                    for (const [productId, variations] of Object.entries(productVariations)) {
-                        for (const variation of variations) {
-                            if (variation.id == variationSelect.value) {
-                                row.setAttribute('data-product-id', productId);
-                                selectedProducts.add(productId);
-                                
-                                // Відображаємо real_name
-                                updateRealNameDisplay(row, variation.name);
-                                
-                                // Відмічаємо чекбокс товару
-                                const checkbox = document.querySelector(`.item-checkbox[value="${productId}"]`);
-                                if (checkbox) {
-                                    checkbox.checked = true;
-                                }
-                                
-                                // Зберігаємо початкові значення
-                                const quantityInput = row.querySelector('input[name$="quantity"]');
-                                const packagesInput = row.querySelector('input[name$="packages_count"]');
-                                const lotInput = row.querySelector('input[name$="lot_number"]');
-                                const packageTypeSelect = row.querySelector('select[name$="package_type"]');
-                                const unitSelect = row.querySelector('select[name$="measurement_unit"]');
-                                
-                                variationData[index] = {
-                                    product_variation: variation.id,
-                                    quantity: quantityInput ? quantityInput.value : "0",
-                                    packages_count: packagesInput ? packagesInput.value : "0",
-                                    lot_number: lotInput ? lotInput.value : "",
-                                    package_type: packageTypeSelect ? packageTypeSelect.value : "",
-                                    measurement_unit: unitSelect ? unitSelect.value : ""
-                                };
-                
-                                break;
-                            }
-                        }
+                    // Знаходимо чекбокс DELETE
+                    const deleteCheckbox = row.querySelector('input[name$="DELETE"]');
+                    
+                    if (deleteCheckbox) {
+                        // Позначаємо для видалення
+                        deleteCheckbox.checked = true;
+                        row.style.display = 'none';
+                    } else {
+                        // Видаляємо рядок, якщо немає чекбокса DELETE
+                        row.remove();
                     }
+                    
+                    // Видаляємо зі списку вибраних варіацій
+                    selectedVariations.delete(parseInt(variationSelect.value));
                 }
             });
         }
         
-        // Ініціалізуємо існуючі рядки при завантаженні сторінки
-        initializeExistingRows();
-        console.log(variationData)
-        
-        // Додаємо обробник для форми, щоб зберегти дані перед відправкою
-        document.getElementById('incomeForm').addEventListener('submit', function(e) {
-            // Перевіряємо, чи всі обов'язкові поля заповнені
-            let hasErrors = false;
-            
-            // Перевіряємо всі видимі рядки (не видалені)
-            const visibleRows = selectedItemsTable.querySelectorAll('.formset-row:not([style*="display: none"])');
-            
-            visibleRows.forEach(row => {
+        // Обробник кнопки видалення рядка
+        selectedItemsTable.addEventListener('click', function(e) {
+            if (e.target.classList.contains('remove-row') || e.target.closest('.remove-row')) {
+                const row = e.target.closest('.formset-row');
                 const variationSelect = row.querySelector('select[name$="product_variation"]');
                 
-                // Перевіряємо, чи вибрана варіація товару
-                if (!variationSelect || !variationSelect.value) {
-                    hasErrors = true;
+                if (variationSelect && variationSelect.value) {
+                    // Видаляємо зі списку вибраних варіацій
+                    selectedVariations.delete(parseInt(variationSelect.value));
                     
-                    // Додаємо повідомлення про помилку
-                    if (!row.querySelector('.variation-error')) {
-                        const errorDiv = document.createElement('div');
-                        errorDiv.className = 'text-danger small mt-1 variation-error';
-                        errorDiv.textContent = 'Виберіть варіацію товару';
-                        variationSelect.parentNode.appendChild(errorDiv);
+                    // Знаходимо чекбокс DELETE
+                    const deleteCheckbox = row.querySelector('input[name$="DELETE"]');
+                    
+                    if (deleteCheckbox) {
+                        // Позначаємо для видалення
+                        deleteCheckbox.checked = true;
+                        row.style.display = 'none';
+                    } else {
+                        // Видаляємо рядок, якщо немає чекбокса DELETE
+                        row.remove();
                     }
                 }
-            });
-            
-            // Якщо є помилки, зупиняємо відправку форми
-            if (hasErrors) {
-                e.preventDefault();
-                alert('Будь ласка, виберіть варіацію товару для всіх рядків');
-                return false;
-            }
-            
-            // Перед відправкою форми переконуємося, що всі змінені дані збережені
-            for (const [formIndex, data] of Object.entries(variationData)) {
-                for (const [fieldName, value] of Object.entries(data)) {
-                    const input = document.querySelector(`[name="form-${formIndex}-${fieldName}"]`);
-                    if (input && input.value !== value) {
-                        input.value = value;
-                    }
+                
+                // Перевіряємо, чи є ще видимі рядки
+                const visibleRows = Array.from(selectedItemsTable.querySelectorAll('.formset-row')).filter(r => r.style.display !== 'none');
+                
+                if (visibleRows.length === 0) {
+                    // Скидаємо вибраний продукт
+                    selectedProductId = null;
+                    addNewVariationBtn.style.display = 'none';
+                    
+                    // Оновлюємо стан чекбоксів
+                    updateProductCheckboxes();
                 }
             }
         });
-
-        // Функція для оновлення відображення даних про продукт
-        function updateProductInfo(selectElement) {
-            const selectedOption = selectElement.options[selectElement.selectedIndex];
-            const row = selectElement.closest('.formset-row');
-            
-            if (selectedOption && selectedOption.value) {
-                // Отримуємо тільки назву культури
-                const culture = selectedOption.getAttribute('data-culture') || '';
-                const realName = selectedOption.getAttribute('data-real-name') || '';
-                const name = selectedOption.getAttribute('data-name') || '';
-                
-                // Знаходимо елементи для відображення
-                const cultureDisplay = row.querySelector('.culture-display');
-                const realNameDisplay = row.querySelector('.real-name-display');
-                const nameDisplay = row.querySelector('.name-display');
-                
-                // Оновлюємо відображення - показуємо тільки назву культури
-                if (cultureDisplay) cultureDisplay.textContent = culture;
-                if (realNameDisplay) realNameDisplay.textContent = realName;
-                if (nameDisplay) nameDisplay.textContent = name;
-            } else {
-                const cultureDisplay = row.querySelector('.culture-display');
-                const realNameDisplay = row.querySelector('.real-name-display');
-                const nameDisplay = row.querySelector('.name-display');
-                
-                if (cultureDisplay) cultureDisplay.textContent = '';
-                if (realNameDisplay) realNameDisplay.textContent = '';
-                if (nameDisplay) nameDisplay.textContent = '';
-                
-                console.log('Очищено дані продукту');
-            }
-        }
         
-        // Додаємо атрибути до опцій селекта при ініціалізації
-        function initializeVariationSelects() {
-            document.querySelectorAll('select[name$="product_variation"]').forEach(select => {
-                Array.from(select.options).forEach(option => {
-                    // Шукаємо варіацію в нашому об'єкті productVariations
-                    for (const [productId, variations] of Object.entries(productVariations)) {
-                        for (const variation of variations) {
-                            if (variation.id == option.value) {
-                                // Зберігаємо тільки назву культури без додаткової інформації
-                                option.setAttribute('data-culture', variation.culture);
-                                break;
-                            }
-                        }
-                    }
-                });
-                
-                // Оновлюємо відображення для поточного вибору
-                updateProductInfo(select);
-                
-                // Додаємо обробник подій для оновлення відображення при зміні вибору
-                select.addEventListener('change', function() {
-                    updateProductInfo(this);
-                });
-            });
-        }
-
-        // Ініціалізуємо селекти варіацій
-        initializeVariationSelects();
+        // Обробник кнопки додавання нової варіації
+        addNewVariationBtn.addEventListener('click', function() {
+            if (selectedProductId) {
+                // Знаходимо продукт в таблиці
+                const checkbox = productsTable.querySelector(`input.item-checkbox[value="${selectedProductId}"]`);
+                if (checkbox) {
+                    const productRow = checkbox.closest('tr');
+                    const productName = productRow.querySelector('td:nth-child(3)').textContent.trim();
+                    const cultureName = productRow.querySelector('td:nth-child(4)').textContent.trim();
+                    
+                    // Додаємо новий рядок
+                    addNewVariationRow(selectedProductId, productName, cultureName);
+                }
+            }
+        });
+        
+        // Перевірка форми перед відправкою
+        document.getElementById('incomeForm').addEventListener('submit', function(e) {
+            const visibleRows = Array.from(selectedItemsTable.querySelectorAll('.formset-row')).filter(r => r.style.display !== 'none');
+            
+            if (visibleRows.length === 0) {
+                e.preventDefault();
+                alert('Будь ласка, додайте хоча б один товар до накладної!');
+                return;
+            }
+        });
+        
+        // Ініціалізація
+        initializeExistingRows();
+        filterProducts();
     });
 </script>
 {% endblock %} 

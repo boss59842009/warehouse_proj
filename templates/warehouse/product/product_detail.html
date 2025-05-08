@@ -108,12 +108,14 @@
     <div class="col-md-6">
         <h4>Варіації товару</h4>
     </div>
+    
     {% comment %} <div class="col-md-6 text-end">
         <a href="{% url 'variation_product_create' product.id %}" class="btn btn-primary">
             <i class="fas fa-plus me-1"></i> Додати варіацію товару
         </a>
     </div> {% endcomment %}
 </div>
+
 <!-- Список варіацій товару -->
 <div class="card shadow-sm border">
     <div class="card-body p-0">
@@ -150,13 +152,13 @@
                         <td>{{ variation.package_type.name }}</td>
                         <td>{{ variation.packages_count }}</td>
                         <td>
+                            
                             <div class="btn-group btn-group-sm">
-                                <a href="{% url 'variation_product_detail' variation.id %}" class="btn btn-outline-primary" title="Переглянути">
-                                    <i class="fas fa-eye"></i>
-                                </a>
+                               
                                 {% comment %} <a href="{% url 'variation_product_update' variation.id %}" class="btn btn-outline-secondary" title="Редагувати">
                                     <i class="fas fa-edit"></i>
                                 </a> {% endcomment %}
+                                
                                 <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteProductModal{{ variation.id }}" title="Видалити">
                                     <i class="fas fa-trash"></i>
                                 </button>
@@ -187,6 +189,7 @@
                         </td>
                     </tr>
                     {% empty %}
+                    
                     <tr>
                         <td colspan="10" class="text-center py-4">
                             <div class="d-flex flex-column align-items-center py-3">
@@ -197,12 +200,19 @@
                         </td>
                     </tr>
                     {% endfor %}
+                    
                 </tbody>
+                
             </table>
+            
         </div>
+       
     </div>
+    
 </div>
-
+<a href="{% url 'product_list' %}" class="btn btn-outline-secondary">
+    <i class="fas fa-arrow-left me-1"></i> Повернутися до списку
+</a>
 <!-- Пагінація -->
 {% if is_paginated %}
 <nav aria-label="Page navigation" class="mt-4">

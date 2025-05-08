@@ -133,8 +133,9 @@ def inventory_create(request):
                 {
                     'id': variation.id,
                     'name': variation.import_name or variation.name or 'Основна варіація',
-                    'real_name': variation.real_name or '',
+                    'real_name': variation.real_name or product.real_name or '',
                     'lot_number': variation.lot_number or '',
+                    'quantity': variation.quantity,
                     'package_type': variation.package_type.id if variation.package_type else None,
                     'measurement_unit': variation.measurement_unit.id if variation.measurement_unit else None,
                     'product_id': variation.parent_product_id,
@@ -159,6 +160,7 @@ def inventory_create(request):
             # Зберігаємо основну форму інвентаризації
             inventory = form.save(commit=False)
             inventory.performed_by = request.user
+            inventory.movement_type = 'inventory'
             inventory.save()
             
             # Зберігаємо елементи інвентаризації
@@ -167,12 +169,29 @@ def inventory_create(request):
                     item = item_form.save(commit=False)
                     item.inventory = inventory
                     
-                    # Зберігаємо різницю між очікуваною та фактичною кількістю
-                    quantity = item_form.cleaned_data.get('quantity', 0)
-                    fact_quantity = item_form.cleaned_data.get('fact_quantity', 0)
-                    item.difference = quantity - fact_quantity
+                    # Отримуємо product_variation
+                    variation_id = item_form.cleaned_data.get('product_variation').id
+                    item.product_variation = ProductVariation.objects.get(id=variation_id)
                     
+                    # Зберігаємо різницю між очікуваною та фактичною кількістю
+                    # Очікувана кількість береться з поточної кількості товару
+                    item.quantity = item.product_variation.quantity
+                    
+                    # Якщо fact_quantity не надана, використовуємо поточну кількість
+                    if 'fact_quantity' not in item_form.cleaned_data or item_form.cleaned_data['fact_quantity'] is None:
+                        item.fact_quantity = item.quantity
+                    else:
+                        item.fact_quantity = item_form.cleaned_data['fact_quantity']
+                    
+                    # Обчислюємо різницю
+                    item.difference = item.fact_quantity - item.quantity
+                    
+                    # Зберігаємо елемент інвентаризації
                     item.save()
+                    
+                    # Оновлюємо кількість товару в продукті
+                    item.product_variation.quantity = item.fact_quantity
+                    item.product_variation.save()
             
             messages.success(request, 'Інвентаризацію успішно створено.')
             return redirect('movement_list')
@@ -198,10 +217,14 @@ def inventory_create(request):
     products = Product.objects.all().prefetch_related('variations', 'productimage_set')
     cultures = Culture.objects.all()
     
+    # Отримуємо всі варіації продуктів
+    variations = ProductVariation.objects.all().select_related('parent_product', 'parent_product__culture', 'measurement_unit', 'package_type')
+    
     context = {
         'form': form,
         'formset': formset,
         'products': products,
+        'variations': variations,
         'cultures': cultures,
     }
     return render(request, 'warehouse/inventory/inventory_form.html', context)

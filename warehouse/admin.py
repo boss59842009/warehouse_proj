@@ -33,9 +33,9 @@ class OrderItemInline(admin.TabularInline):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ('id', 'user', 'status', 'total_price', 'created_at')
+    list_display = ('id', 'created_by', 'status', 'total_price', 'created_at')
     list_filter = ('status', 'created_at')
-    search_fields = ('user__username', 'comment')
+    search_fields = ('created_by__username', 'comment')
     inlines = [OrderItemInline]
 
 admin.site.register(Inventory)

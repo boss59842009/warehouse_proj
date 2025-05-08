@@ -20,12 +20,13 @@
     <div class="card-body">
         <form method="get" id="filterForm">
             <div class="row g-3">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label for="status" class="form-label">Статус</label>
                     <select name="status" id="status" class="form-select">
                         <option value="">Всі статуси</option>
-                        <option value="successful" {% if request.GET.status == 'successful' %}selected{% endif %}>Успішно</option>
-                        <option value="canceled" {% if request.GET.status == 'canceled' %}selected{% endif %}>Скасовано</option>
+                        <option value="pending" {% if status == 'pending' %}selected{% endif %}>В обробці</option>
+                        <option value="successful" {% if status == 'successful' %}selected{% endif %}>Успішно</option>
+                        <option value="canceled" {% if status == 'canceled' %}selected{% endif %}>Скасовано</option>
                     </select>
                 </div>
                 <div class="col-md-4">
@@ -55,86 +56,60 @@
 
 <!-- Список замовлень -->
 <div class="card shadow-sm border">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">Список замовлень</h5>
+        <a href="{% url 'order_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i> Нове замовлення
+        </a>
+    </div>
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
+            <table class="table mb-0">
                 <thead class="bg-light">
                     <tr>
-                        <th scope="col" style="width: 100px;">№</th>
-                        <th scope="col" style="width: 150px;">Дата замовлення</th>
-                        <th scope="col" style="width: 150px;">Загальна к-сть товарів</th>
-                        <th scope="col" style="width: 150px;">Статус</th>
-                        <th scope="col" style="width: 150px;">Дії</th>
+                        <th scope="col">#</th>
+                        <th scope="col">Дата</th>
+                        <th scope="col">Створив</th>
+                        <th scope="col">Товари</th>
+                        <th scope="col">Статус</th>
+                        <th scope="col" style="width: 100px;">Дії</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for order in orders %}
-                        <tr>
-                            <td>
-                                <strong>{{ order.id }}</strong>
-                            </td>
-                            <td>
-                                {{ order.created_at|date:"d.m.Y H:i" }}
-                            </td>
-                            <td>
-                                {{ order.items.count }}
-                            </td>
-                            <td>
-                                <span class="badge 
-                                    {% if order.status == 'successful' %}bg-success text-white
-                                    {% elif order.status == 'canceled' %}bg-danger text-white
-                                    {% else %}bg-secondary text-white{% endif %}">
-                                    {{ order.get_status_display }}
-                                </span>
-                            </td>
-                            <td>
-                                <div class="btn-group btn-group-sm">
-                                    <a href="{% url 'order_detail' order.id %}" class="btn btn-outline-primary" title="Переглянути">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    {% if order.status == 'successful' %}
-                                    <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteOrderModal{{ order.id }}" title="Скасувати">
-                                        <i class="fas fa-ban"></i>
-                                    </button>
-                                    {% endif %}
+                    <tr>
+                        <td>{{ order.id }}</td>
+                        <td>{{ order.created_at|date:"d.m.Y H:i" }}</td>
+                        <td>{{ order.created_by.get_full_name|default:order.created_by.username }}</td>
+                        <td>
+                            {% for item in order.items.all|slice:":3" %}
+                                <div class="mb-1">
+                                    {{ item.product_variation.name }} - {{ item.quantity }} {{ item.product_variation.measurement_unit.name }}
                                 </div>
-                            </td>
-                        </tr>
-                        <!-- Delete Order Modal -->
-                        <div class="modal fade" id="deleteOrderModal{{ order.id }}" tabindex="-1" aria-labelledby="deleteOrderModalLabel{{ order.id }}" aria-hidden="true">
-                            <div class="modal-dialog">
-                                <div class="modal-content">
-                                    <div class="modal-header">
-                                        <h5 class="modal-title" id="deleteOrderModalLabel{{ order.id }}">Підтвердження скасування</h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрити"></button>
-                                    </div>
-                                    <div class="modal-body">
-                                        <p>Ви впевнені, що хочете скасувати замовлення "{{ order.id }}"?</p>
-                                        <p class="text-danger"><strong>Увага:</strong> Ця дія не може бути скасована.</p>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Відміна</button>
-                                        <form method="post" action="{% url 'order_cancel' order.id %}">
-                                            {% csrf_token %}
-                                            <button type="submit" class="btn btn-danger">Скасувати замовлення</button>
-                                        </form>
-                                    </div>
-                                </div>
+                            {% endfor %}
+                            {% if order.items.count > 3 %}
+                                <small class="text-muted">та ще {{ order.items.count|add:"-3" }} товарів</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="badge {% if order.status == 'successful' %}bg-success{% elif order.status == 'canceled' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                {{ order.get_status_display }}
                             </div>
-                        </div>
-                        {% empty %}
-                        <tr>
-                            <td colspan="6" class="text-center py-4">
-                                <div class="d-flex flex-column align-items-center py-3">
-                                    <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
-                                    <h5 class="text-muted">Замовлення не знайдено</h5>
-                                    <p class="text-muted mb-3">Спробуйте змінити параметри пошуку або створіть нове замовлення</p>
-                                    <a href="{% url 'order_create' %}" class="btn btn-primary">
-                                        <i class="fas fa-plus me-1"></i> Нове замовлення
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
+                        </td>
+                        <td>
+                            <div class="btn-group">
+                                <a href="{% url 'order_detail' pk=order.id %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4">
+                            <div class="text-muted">Замовлення не знайдені</div>
+                        </td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -143,65 +118,27 @@
 </div>
 
 <!-- Пагінація -->
-{% if is_paginated %}
-<nav aria-label="Page navigation" class="mt-4">
+{% if orders.paginator.num_pages > 1 %}
+<nav class="mt-4">
     <ul class="pagination justify-content-center">
-        {% if page_obj.has_previous %}
+        {% if orders.has_previous %}
         <li class="page-item">
-            <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="First">
-                <span aria-hidden="true">&laquo;&laquo;</span>
-            </a>
-        </li>
-        <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Previous">
-                <span aria-hidden="true">&laquo;</span>
-            </a>
-        </li>
-        {% else %}
-        <li class="page-item disabled">
-            <a class="page-link" href="#" aria-label="First">
-                <span aria-hidden="true">&laquo;&laquo;</span>
-            </a>
-        </li>
-        <li class="page-item disabled">
-            <a class="page-link" href="#" aria-label="Previous">
-                <span aria-hidden="true">&laquo;</span>
+            <a class="page-link" href="?page={{ orders.previous_page_number }}{% if status %}&status={{ status }}{% endif %}">
+                <i class="fas fa-chevron-left"></i>
             </a>
         </li>
         {% endif %}
 
-        {% for num in page_obj.paginator.page_range %}
-        {% if page_obj.number == num %}
-        <li class="page-item active">
-            <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+        {% for num in orders.paginator.page_range %}
+        <li class="page-item {% if orders.number == num %}active{% endif %}">
+            <a class="page-link" href="?page={{ num }}{% if status %}&status={{ status }}{% endif %}">{{ num }}</a>
         </li>
-        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-        <li class="page-item">
-            <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
-        </li>
-        {% endif %}
         {% endfor %}
 
-        {% if page_obj.has_next %}
+        {% if orders.has_next %}
         <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Next">
-                <span aria-hidden="true">&raquo;</span>
-            </a>
-        </li>
-        <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Last">
-                <span aria-hidden="true">&raquo;&raquo;</span>
-            </a>
-        </li>
-        {% else %}
-        <li class="page-item disabled">
-            <a class="page-link" href="#" aria-label="Next">
-                <span aria-hidden="true">&raquo;</span>
-            </a>
-        </li>
-        <li class="page-item disabled">
-            <a class="page-link" href="#" aria-label="Last">
-                <span aria-hidden="true">&raquo;&raquo;</span>
+            <a class="page-link" href="?page={{ orders.next_page_number }}{% if status %}&status={{ status }}{% endif %}">
+                <i class="fas fa-chevron-right"></i>
             </a>
         </li>
         {% endif %}

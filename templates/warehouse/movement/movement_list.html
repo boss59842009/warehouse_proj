@@ -56,8 +56,8 @@
                     <tr>
                         <th>№</th>
                         <th>Тип руху</th>
-                        <th>Загальна кількість</th>
-                        <th>Загальна кількість упаковок</th>
+                        <th>Варіація</th>
+                        <th>Кількість упаковок</th>
                         <th>Фактична кількість</th>
                         <th>Дата</th>
                         <th>Виконавець</th>
@@ -75,9 +75,25 @@
                             <span class="badge bg-primary">Інвентаризація</span>
                             {% endif %}
                         </td>
-                        <td>{{ movement.total_quantity|default:'-' }} {{ movement.product.measurement_unit.name }}</td>
-                        <td>{{ movement.total_packages_count|default:'-' }} {{ movement.product.package_type.name }}</td>
-                        <td>{{ movement.fact_quantity|default:'-' }} {{ movement.product.measurement_unit.name }}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                {% if movement.product_variation.product.productimage_set.exists %}
+                                <img src="{{ movement.product_variation.product.productimage_set.first.image.url }}" 
+                                     alt="{{ movement.product_variation.product.real_name }}" 
+                                     class="img-thumbnail me-2" 
+                                     style="width: 40px; height: 40px; object-fit: cover;">
+                                {% endif %}
+                                <div>
+                                    <div class="fw-bold">{{ movement.product_variation.product.culture.name }}</div>
+                                    <div class="small text-muted">
+                                        {{ movement.product_variation.product.real_name }} - 
+                                        {{ movement.product_variation.name }}
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>{{ movement.packages_count }} {{ movement.product_variation.package_type.name }}</td>
+                        <td>{{ movement.fact_quantity|default:'-' }} {{ movement.product_variation.measurement_unit.name }}</td>
                         <td>{{ movement.created_at|date:"d.m.Y H:i" }}</td>
                         <td>
                             {{ movement.performed_by.username }}
@@ -200,8 +216,6 @@
                 
                 const filterType = this.dataset.filter;
                 console.log(`Фільтрація за: ${filterType}`);
-                
-                // Тут можна додати логіку фільтрації (буде реалізовано пізніше)
             });
         });
         
@@ -210,7 +224,6 @@
         if (additionalSettingsBtn) {
             additionalSettingsBtn.addEventListener('click', function() {
                 alert('Відкрити додаткові налаштування');
-                // Тут можна додати логіку відображення налаштувань
             });
         }
     });

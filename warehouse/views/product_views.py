@@ -297,4 +297,37 @@ def culture_products(request, culture_id):
         'page_obj': page_obj,
     }
     
-    return render(request, 'warehouse/product/culture_products.html', context) 
+    return render(request, 'warehouse/product/culture_products.html', context)
+
+@login_required
+def variation_product_detail(request, pk):
+    """View to display details of a specific product variation."""
+    variation_product = get_object_or_404(
+        ProductVariation.objects.select_related('parent_product', 'parent_product__culture', 'package_type', 'measurement_unit'), 
+        pk=pk
+    )
+    
+    # Get related variations (same parent product)
+    related_products = ProductVariation.objects.filter(
+        parent_product=variation_product.parent_product
+    ).exclude(id=variation_product.id)[:4]
+    
+    context = {
+        'variation_product': variation_product,
+        'related_products': related_products,
+    }
+    
+    return render(request, 'warehouse/product/variation_product_detail.html', context)
+
+@login_required
+def variation_product_delete(request, pk):
+    """View to delete a product variation."""
+    variation = get_object_or_404(ProductVariation, pk=pk)
+    parent_product = variation.parent_product
+    
+    if request.method == 'POST':
+        variation_name = variation.name or variation.parent_product.real_name
+        variation.delete()
+        messages.success(request, f'Варіацію товару "{variation_name}" успішно видалено.')
+        return redirect('product_detail', pk=parent_product.pk)
+    return redirect('product_detail', pk=parent_product.pk) 

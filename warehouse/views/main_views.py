@@ -1,7 +1,9 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.db.models import Sum, Count, F, Q
-from ..models import Product, Order, Inventory, ProductIncome, ProductVariation
+from ..models import Product, Order, ProductMovement, Inventory, ProductIncome, ProductVariation, Culture, PackageType, MeasurementUnit
+from ..forms import ProductVariationFilterForm
+from django.core.paginator import Paginator
 
 @login_required
 def home(request):
@@ -112,10 +114,47 @@ def dashboard(request):
         'pending_orders': pending_orders,
         'inventory_discrepancies': inventory_discrepancies,
         'recent_movements': recent_movements,
-        'categories': categories,
         'top_products': top_products,
         'total_stock_value': total_stock_value,
         'recent_activities': recent_activities,
     }
     
-    return render(request, 'warehouse/dashboard.html', context) 
+    return render(request, 'warehouse/dashboard.html', context)
+
+@login_required
+def cuantity_list(request):
+    # Отримуємо всі варіації товарів
+    variations = ProductVariation.objects.select_related(
+        'parent_product', 'parent_product__culture', 'measurement_unit', 'package_type'
+    ).all()
+    
+    # Фільтрація
+    filter_form = ProductVariationFilterForm(request.GET)
+    if filter_form.is_valid():
+        if filter_form.cleaned_data.get('culture'):
+            variations = variations.filter(parent_product__culture=filter_form.cleaned_data['culture'])
+        if filter_form.cleaned_data.get('real_name'):
+            variations = variations.filter(parent_product__real_name__icontains=filter_form.cleaned_data['real_name'])
+        if filter_form.cleaned_data.get('name'):
+            variations = variations.filter(name__icontains=filter_form.cleaned_data['name'])
+        if filter_form.cleaned_data.get('lot_number'):
+            variations = variations.filter(lot_number__icontains=filter_form.cleaned_data['lot_number'])
+        if filter_form.cleaned_data.get('measurement_unit'):
+            variations = variations.filter(measurement_unit=filter_form.cleaned_data['measurement_unit'])
+        if filter_form.cleaned_data.get('package_type'):
+            variations = variations.filter(package_type=filter_form.cleaned_data['package_type'])
+    
+    # Пагінація
+    paginator = Paginator(variations.order_by('id'), 10)  # 10 варіацій на сторінку
+    page = request.GET.get('page')
+    variations = paginator.get_page(page)
+    
+    context = {
+        'variations': variations,
+        'filter_form': filter_form,
+        'cultures': Culture.objects.all(),
+        'package_types': PackageType.objects.all(),
+        'measurement_units': MeasurementUnit.objects.all(),
+    }
+    
+    return render(request, 'warehouse/movement/cuantity_list.html', context) 

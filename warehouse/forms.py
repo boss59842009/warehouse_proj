@@ -32,9 +32,10 @@ class ProductVariationForm(forms.ModelForm):
     class Meta:
         model = ProductVariation
         fields = [
-            'real_name', "import_name", "lot_number", "package_type", "measurement_unit"
+            'name', 'real_name', "import_name", "lot_number", "package_type", "measurement_unit"
         ]
         widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
             'real_name': forms.TextInput(attrs={'class': 'form-control'}),
             'import_name': forms.TextInput(attrs={'class': 'form-control'}),
             'lot_number': forms.TextInput(attrs={'class': 'form-control'}),
@@ -47,7 +48,7 @@ ProductVariationFormSet = inlineformset_factory(
     Product, 
     ProductVariation,
     form=ProductVariationForm,
-    fields=('real_name', 'import_name', 'lot_number', 'package_type', 'measurement_unit'),
+    fields=('name', 'real_name', 'import_name', 'lot_number', 'package_type', 'measurement_unit'),
     extra=0,
     can_delete=True
 )
@@ -88,9 +89,9 @@ class OrderForm(forms.ModelForm):
 class OrderItemForm(forms.ModelForm):
     class Meta:
         model = OrderItem
-        fields = ['product', 'quantity', 'price']
+        fields = ['product_variation', 'quantity', 'price']
         widgets = {
-            'product': forms.Select(attrs={'class': 'form-select'}),
+            'product_variation': forms.Select(attrs={'class': 'form-select'}),
             'quantity': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
             'price': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
         }
@@ -122,7 +123,7 @@ ProductIncomeItemFormSet = inlineformset_factory(
     ProductIncome,
     ProductIncomeItem,
     form=ProductIncomeItemForm,
-    fields=['quantity', 'packages_count', 'lot_number', 'package_type', 'measurement_unit'],
+    fields=['product_variation', 'quantity', 'packages_count', 'lot_number', 'package_type', 'measurement_unit'],
     extra=0,
     can_delete=True
 )
@@ -199,7 +200,7 @@ class SystemParamForm(forms.ModelForm):
 class AddToCartForm(forms.Form):
     quantity = forms.IntegerField(min_value=1, initial=1, widget=forms.NumberInput(
         attrs={'class': 'form-control', 'min': 1}))
-    product_id = forms.IntegerField(widget=forms.HiddenInput())
+    product_variation_id = forms.IntegerField(widget=forms.HiddenInput())
 
 class CartForm(forms.Form):
     CHOICES = [('update', 'Оновити'), ('checkout', 'Оформити замовлення')]
@@ -208,7 +209,7 @@ class CartForm(forms.Form):
 class CartItemForm(forms.Form):
     quantity = forms.IntegerField(min_value=0, widget=forms.NumberInput(
         attrs={'class': 'form-control', 'min': 0}))
-    product_id = forms.IntegerField(widget=forms.HiddenInput())
+    product_variation_id = forms.IntegerField(widget=forms.HiddenInput())
 
 class CheckoutForm(forms.Form):
     comment = forms.CharField(required=False, widget=forms.Textarea(

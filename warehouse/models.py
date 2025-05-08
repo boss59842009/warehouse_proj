@@ -84,8 +84,31 @@ class ProductVariation(BaseProduct):
     parent_product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='variations', verbose_name="Основний товар")
     sku = models.CharField(max_length=100, blank=True, null=True, unique=True, verbose_name="Артикул")
     
+    def _get_culture(self):
+        """Get the culture from the parent product."""
+        return self.parent_product.culture if self.parent_product else None
+    
+    def _set_culture(self, value):
+        """This is a dummy setter to prevent errors when attempting to set culture.
+        Since culture is inherited from parent_product, we don't actually set anything."""
+        pass
+    
+    # Replace the property with a property that has a setter
+    culture = property(_get_culture, _set_culture)
+    
+    @property
+    def display_name(self):
+        """Return the name of the variation, falling back to real_name or parent product's name if name is not set."""
+        if self.name:
+            return self.name
+        elif self.real_name:
+            return self.real_name
+        elif self.parent_product:
+            return self.parent_product.real_name
+        return "Unnamed"
+    
     def __str__(self):
-        return f"{self.parent_product.name} - {self.name}"
+        return f"{self.parent_product.name} - {self.name}" if self.parent_product else f"{self.name or self.real_name or 'Unnamed'}"
     
     class Meta:
         verbose_name = "Варіація товару"
@@ -100,12 +123,13 @@ class ProductVariationImage(models.Model):
 
 class Order(models.Model):
     STATUS_CHOICES = (
+        ('pending', 'В обробці'),
         ('successful', 'Успішно'),
         ('canceled', 'Скасовано'),
     )
     
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="Користувач")
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='successful', verbose_name="Статус")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, verbose_name="Створив", related_name='created_orders')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name="Статус")
     comment = models.TextField(blank=True, null=True, verbose_name="Коментар")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Оновлено")
@@ -121,31 +145,30 @@ class Order(models.Model):
     class Meta:
         verbose_name = "Замовлення"
         verbose_name_plural = "Замовлення"
+        ordering = ['-created_at']
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items', verbose_name="Замовлення")
-    product = models.ForeignKey(ProductVariation, on_delete=models.CASCADE, verbose_name="Товар")
+    product_variation = models.ForeignKey(ProductVariation, on_delete=models.CASCADE, verbose_name="Варіація товару")
     quantity = models.PositiveIntegerField(default=1, verbose_name="Кількість")
     price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Ціна за одиницю")
     total_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Загальна ціна")
     
     def __str__(self):
-        return f"{self.product.name} x {self.quantity}"
+        return f"{self.product_variation.name} x {self.quantity}"
     
     def save(self, *args, **kwargs):
-        # Якщо ціна не встановлена, беремо з товару
+        # Якщо ціна не встановлена, беремо з варіації
         if not self.price:
-            self.price = self.product.price
-        if not self.quantity:
-            self.quantity = self.product.quantity
+            self.price = self.product_variation.price
         # Розрахунок загальної ціни
         self.total_price = self.price * self.quantity
         super().save(*args, **kwargs)
         self.order.update_total_price()
     
     class Meta:
-        verbose_name = "Товар у замовленні"
-        verbose_name_plural = "Товари у замовленні"
+        verbose_name = "Варіація у замовленні"
+        verbose_name_plural = "Варіації у замовленні"
 
 class Inventory(models.Model):
     movement_type = models.CharField(max_length=100, default='inventory', verbose_name="Тип накладної", null=True, blank=True)
@@ -166,6 +189,19 @@ class InventoryItem(models.Model):
     quantity = models.PositiveIntegerField(default=0, verbose_name="Кількість") 
     fact_quantity = models.PositiveIntegerField(default=0, verbose_name="Фактична кількість")
     difference = models.IntegerField(default=0, verbose_name="Відхилення")
+
+    def save(self, *args, **kwargs):
+        # Обчислюємо різницю
+        self.difference = self.fact_quantity - self.quantity
+        
+        # Зберігаємо модель
+        super().save(*args, **kwargs)
+        
+        # Оновлюємо кількість в product_variation на основі фактичної кількості
+        if self.product_variation:
+            # Оновлюємо кількість відповідно до фактичної кількості
+            self.product_variation.quantity = self.fact_quantity
+            self.product_variation.save()
 
     def __str__(self):
         return f"Інвентаризація від {self.inventory.created_at.strftime('%d.%m.%Y')}"
@@ -207,6 +243,43 @@ class ProductIncomeItem(models.Model):
     lot_number = models.CharField(max_length=100, blank=True, null=True, verbose_name="Номер лоту")
     package_type = models.ForeignKey(PackageType, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Тип упаковки")
     measurement_unit = models.ForeignKey(MeasurementUnit, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Одиниця виміру")
+
+    def save(self, *args, **kwargs):
+        # Зберігаємо старий стан перед збереженням для порівняння
+        if self.pk:
+            old_instance = ProductIncomeItem.objects.get(pk=self.pk)
+            old_quantity = old_instance.quantity
+            old_packages_count = old_instance.packages_count
+        else:
+            old_quantity = 0
+            old_packages_count = 0
+            
+        # Зберігаємо модель
+        super().save(*args, **kwargs)
+        
+        # Оновлюємо кількість товару у product_variation
+        if self.product_variation:
+            # Якщо оновлення, віднімаємо старі значення
+            if self.pk:
+                quantity_delta = self.quantity - old_quantity
+                packages_delta = self.packages_count - old_packages_count
+            else:
+                quantity_delta = self.quantity
+                packages_delta = self.packages_count
+                
+            # Оновлюємо продукт
+            self.product_variation.quantity += quantity_delta
+            self.product_variation.packages_count += packages_delta
+            
+            # Синхронізуємо номер лоту і одиниці виміру
+            if self.lot_number and not self.product_variation.lot_number:
+                self.product_variation.lot_number = self.lot_number
+            if self.package_type and not self.product_variation.package_type:
+                self.product_variation.package_type = self.package_type
+            if self.measurement_unit and not self.product_variation.measurement_unit:
+                self.product_variation.measurement_unit = self.measurement_unit
+                
+            self.product_variation.save()
 
     def __str__(self):
         return f"{self.product_variation.name} ({self.quantity} {self.product_variation.measurement_unit})"
@@ -292,4 +365,63 @@ class SystemParam(models.Model):
     class Meta:
         verbose_name = "Системний параметр"
         verbose_name_plural = "Системні параметри"
+        
+class ProductMovement(models.Model):
+    movement_type = models.CharField(max_length=100, default='movement', verbose_name="Тип руху")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Створено")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Оновлено")
+    performed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, verbose_name="Виконав")
+    
+    def __str__(self):
+        return f"Рух товарів {self.created_at.strftime('%d.%m.%Y')}"
+    
+    class Meta:
+        verbose_name = "Рух товарів"
+        verbose_name_plural = "Рух товарів"
+
+# Signal handlers for when ProductVariation is saved to update product attributes from parent
+@receiver(models.signals.pre_save, sender=ProductVariation)
+def update_variation_from_parent(sender, instance, **kwargs):
+    """Update variation fields from parent product if they are not set."""
+    if instance.parent_product:
+        # Copy culture from parent to variation internally
+        if not hasattr(instance, 'culture'):
+            instance.culture = instance.parent_product.culture
+        
+        # If these fields are not set, copy from parent product
+        if not instance.name and instance.parent_product.name:
+            instance.name = instance.parent_product.name
+            
+        if not instance.real_name and instance.parent_product.real_name:
+            instance.real_name = instance.parent_product.real_name
+            
+        if not instance.measurement_unit and instance.parent_product.measurement_unit:
+            instance.measurement_unit = instance.parent_product.measurement_unit
+            
+        if not instance.package_type and instance.parent_product.package_type:
+            instance.package_type = instance.parent_product.package_type
+
+# Clean up ProductIncomeItem when deleted to adjust product quantity
+@receiver(models.signals.pre_delete, sender=ProductIncomeItem)
+def adjust_quantity_on_delete(sender, instance, **kwargs):
+    if instance.product_variation:
+        # Subtract quantity and packages when an income item is deleted
+        instance.product_variation.quantity -= instance.quantity
+        instance.product_variation.packages_count -= instance.packages_count
+        instance.product_variation.save()
+
+# Clean up images when product is deleted
+@receiver(pre_delete, sender=ProductImage)
+def image_delete(sender, instance, **kwargs):
+    # Delete the image file when the model instance is deleted
+    if instance.image:
+        if os.path.isfile(instance.image.path):
+            os.remove(instance.image.path)
+
+@receiver(pre_delete, sender=ProductVariationImage)
+def variation_image_delete(sender, instance, **kwargs):
+    # Delete the image file when the model instance is deleted
+    if instance.image:
+        if os.path.isfile(instance.image.path):
+            os.remove(instance.image.path)
 
